@@ -1,14 +1,31 @@
 package main
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/Piktet/azopkov.git/internal/handler"
+)
+
+// addr — адрес
+// Формат: "хост:порт" — localhost:8080.
+const addr = "localhost:8080"
 
 func main() {
-	mux := http.NewServeMux()
-	mux.HandleFunc(`/{id}/`, HandlerPost)
-	mux.HandleFunc(`/`, HandlerGet)
+	// Создаём новый экземпляр HTTP-сервера
+	srv := handler.New(addr)
 
-	err := http.ListenAndServe(`:8080`, mux)
-	if err != nil {
+	// Инициализируем роутер
+	mux := http.NewServeMux()
+
+	// Регистрируем обработчики:
+	// - POST / → создание короткого URL
+	// - GET /{id} → редирект по ID
+	mux.HandleFunc("/", srv.HandlerPostFull)
+	mux.HandleFunc("/{id}", srv.HandlerGetFull)
+
+	// Запускаем HTTP-сервер
+	//panic при ошибке
+	if err := http.ListenAndServe(addr, mux); err != nil {
 		panic(err)
 	}
 }

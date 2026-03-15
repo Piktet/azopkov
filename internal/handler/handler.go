@@ -1,68 +1,147 @@
 package handler
 
 import (
-	"crypto/rand"
-	"encoding/base64"
+	"io"
+	"net"
 	"net/http"
+	"net/url"
+	"strings"
+
+	"github.com/Piktet/azopkov.git/internal/service"
 )
 
-const (
-	n = 5
-)
+// HTTP-сервер для сокращения URL.
+type StorageServer struct {
+	service.Storage         // соответствие short <-> full
+	u               url.URL // URL (например, http://localhost:8080)
+}
 
-func HandlerPost(w http.ResponseWriter, r *http.Request) {
-	// этот обработчик принимает только запросы, отправленные методом GET
+// New новый экземпляр сервера в формате "host:port".
+// По умолчанию "localhost".
+// При ошибке - panic-а
+func New(addr string) *StorageServer {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		panic(err)
+	}
+	if host == "" {
+		host = "localhost"
+	}
+
+	// Формируем базовый URL сервера
+	u := url.URL{
+		Scheme: "http",
+		Host:   net.JoinHostPort(host, port),
+	}
+
+	// Возвращаем указатель на новый сервер с инициализированным хранилищем
+	return &StorageServer{
+		Storage: service.New(), // Инициализация бизнес-логики
+		u:       u,
+	}
+}
+
+// format преобразует путь (например, "/EwHXdJfB") в полный URL.
+// Используется для возврата клиенту сокращённого URL в виде строки.
+//
+// format("/xEwHXdJfByz") → "http://localhost:8080/EwHXdJfB"
+func (p *StorageServer) format(path string) string {
+	p.u.Path = path     // Устанавливаем путь
+	return p.u.String() // Возвращаем строковое представление URL
+}
+
+// HandlerPostFull — обработчик POST-запросов на пути "/".
+//
+// Принимает:
+//   - Метод: POST
+//   - Content-Type: text/plain
+//   - Тело запроса: строка - URL
+//
+// Возвращает:
+//   - Код 201 Created
+//   - Тело: сокращённый URL (http://localhost:8080/EwHXdJfB)
+//   - Content-Type: text/plain
+//
+// Ошибки:
+//   - 400 Bad Request
+func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) {
+	// Проверка HTTP-метода
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	// проверяем, что в запросе есть заголовок Content-Type : text/plain
-	if r.Header.Get("Content-Type") != "text/plain" {
+
+	// Проверка типа содержимого
+	contentType := r.Header.Get("Content-Type")
+	if contentType != "text/plain" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	//сохраняем тело запроса в переменную body
-	LngURL := r.Body
-	if LngURL == nil {
+
+	// Чтение тела
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	//генерируем ответ с коротким URL
+	defer r.Body.Close() // закрытие
+
+	// Очистка от пробелов и проверка URL
+	fullURL := strings.TrimSpace(string(body))
+	if _, err := url.ParseRequestURI(fullURL); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// Получение короткого идентификатора
+	short, err := p.GetShort(fullURL)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// Формирование ответа
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(ShortURL(LngURL)))
+	w.Write([]byte(p.format(short)))
 }
 
-func HandlerGet(w http.ResponseWriter, r *http.Request) {
-	// этот обработчик принимает только запросы, отправленные методом GET
+// HandlerGetFull — обработчик GET-запросов на пути "/{id}".
+//
+// Принимает:
+//   - Метод: GET
+//   - Путь: /{id} (id- EwHXdJfB)
+//
+// Возвращает:
+//   - Код 307 Temporary Redirect
+//   - Location: URL
+//
+// Ошибки:
+//   - 400 Bad Request
+func (p *StorageServer) HandlerGetFull(w http.ResponseWriter, r *http.Request) {
+	// Проверка метода
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	// проверяем, что в запросе есть заголовок Content-Type : text/plain
-	if r.Header.Get("Content-Type") != "text/plain" {
+
+	// Извлечение идентификатора из пути
+	id := r.PathValue("id")
+	if id == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	ShtURL := r.PathValue("id")
-	// возвращаем ответ с кодом 307 и полным адресом
-	http.Redirect(w, r, LongUrl(ShtURL), http.StatusTemporaryRedirect)
-}
 
-// функция генерация строки для URL длиной n
-func RndShortCode(n int) (string, error) {
-	b := make([]byte, n)
-	_, err := rand.Read(b)
+	// Поиск полного URL
+	full, err := p.GetFull(id)
 	if err != nil {
-		return "", err
+		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
-	return base64.URLEncoding.EncodeToString(b)[:n], nil
-}
 
-// функция которая будет принимать на вход URL и возвращать короткий URL
-func ShortURL(LngURL string) (string, error) {
-}
+	// Установка заголовка
+	w.Header().Set("Location", full)
 
-// функция которая будет принимать на вход короткий URL и возвращать полный URL
-func LongUrl(ShtURL string) string {
+	// Отправка временного редиректа (307)
+	w.WriteHeader(http.StatusTemporaryRedirect)
 }
