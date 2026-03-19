@@ -119,100 +119,82 @@ func TestHandlerPostFull(t *testing.T) {
 //-----
 
 func TestHandlerGetFull(t *testing.T) {
-	const addr = "localhost:8080"
+
+	type have struct {
+		method  string
+		request string
+	}
+	type want struct {
+		code     int
+		location string
+	}
 
 	server := New(addr)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", server.HandlerPostFull)
 	mux.HandleFunc("/{id}", server.HandlerGetFull)
 
-	// Предварительно добавим один URL вручную через POST
-	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse // блокируем редирект, чтобы проверить статус
-		},
-	}
+	go http.ListenAndServe(addr, mux)
 
-	// Создаём тестовый сервер
-	ts := httptest.NewServer(mux)
-	defer ts.Close()
-
-	// Вспомогательная функция для создания короткой ссылки
-	createShort := func(fullURL string) (string, error) {
-		resp, err := http.Post(ts.URL, "text/plain", strings.NewReader(fullURL))
-		if err != nil {
-			return "", err
-		}
-		defer resp.Body.Close()
-		body, _ := io.ReadAll(resp.Body)
-		return string(body), nil
+	haveMethod := http.MethodGet
+	full := "http://yandex.ru"
+	short, err := server.GetShort(full)
+	if err != nil {
+		t.Error(err)
+		return
 	}
 
 	tests := []struct {
-		name           string
-		setup          func() string // возвращает shortID
-		id             string
-		wantStatus     int
-		wantLocation   string // ожидаемый заголовок Location при редиректе
-		wantNoLocation bool   // если не должен быть Location (ошибки)
+		name string
+		have have
+		want want
 	}{
 		{
-			name: "positive redirect",
-			setup: func() string {
-				short, _ := createShort("https://ya.ru")
-				return short
+			name: "positive",
+			have: have{
+				method:  haveMethod,
+				request: "/" + short,
 			},
-			id:           "", // будет заполнено setup'ом
-			wantStatus:   http.StatusTemporaryRedirect,
-			wantLocation: "https://ya.ru",
+			want: want{
+				code:     http.StatusTemporaryRedirect,
+				location: full,
+			},
 		},
 		{
-			name: "negative not found",
-			setup: func() string {
-				return "unknown1" // ID не существует
+			name: "negative method",
+			have: have{
+				method:  http.MethodPost,
+				request: "/" + short,
 			},
-			id:             "unknown1",
-			wantStatus:     http.StatusNotFound,
-			wantNoLocation: true,
+			want: want{
+				code:     http.StatusBadRequest,
+				location: "",
+			},
 		},
 		{
-			name: "negative empty id",
-			setup: func() string {
-				return ""
+			name: "negative id",
+			have: have{
+				method:  haveMethod,
+				request: "/srftgnj/",
 			},
-			id:             "",
-			wantStatus:     http.StatusBadRequest,
-			wantNoLocation: true,
+			want: want{
+				code:     http.StatusBadRequest,
+				location: "",
+			},
 		},
 	}
-
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var shortID string
-			if test.setup != nil {
-				shortID = test.setup()
-			}
-			if test.id == "" && test.setup != nil {
-				test.id = shortID
-			}
+			r := httptest.NewRequest(test.have.method, test.have.request, nil)
+			w := httptest.NewRecorder()
+			mux.ServeHTTP(w, r)
 
-			req, err := http.NewRequest(http.MethodGet, ts.URL+"/"+test.id, nil)
-			assert.NoError(t, err)
+			result := w.Result()
+			defer result.Body.Close()
 
-			resp, err := client.Do(req)
-			assert.NoError(t, err)
-			defer resp.Body.Close()
-
-			assert.Equal(t, test.wantStatus, resp.StatusCode)
-
-			if test.wantLocation != "" {
-				location := resp.Header.Get("Location")
-				assert.Equal(t, test.wantLocation, location)
-			}
-			if test.wantNoLocation {
-				location := resp.Header.Get("Location")
-				assert.Empty(t, location)
-			}
+			assert.Equal(t, test.want.code, result.StatusCode)
+			assert.Equal(t, test.want.location, result.Header.Get("Location"))
 		})
 	}
+
 }
