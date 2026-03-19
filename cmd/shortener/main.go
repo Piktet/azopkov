@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/Piktet/azopkov.git/internal/handler"
+	"github.com/go-chi/chi/v5"
 )
 
 // addr — адрес
@@ -15,17 +16,17 @@ func main() {
 	srv := handler.New(addr)
 
 	// Инициализируем роутер
-	mux := http.NewServeMux()
+	router := chi.NewRouter()
 
 	// Регистрируем обработчики:
 	// - POST / → создание короткого URL
 	// - GET /{id} → редирект по ID
-	mux.HandleFunc("/", srv.HandlerPostFull)
-	mux.HandleFunc("/{id}", srv.HandlerGetFull)
+	router.Post(`/`, srv.HandlerPostFull)
+	router.Get(`/{id}`, srv.HandlerGetFull)
 
 	// Запускаем HTTP-сервер
 	//panic при ошибке
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := http.ListenAndServe(addr, router); err != nil {
 		panic(err)
 	}
 }
