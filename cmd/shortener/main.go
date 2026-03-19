@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 
+	"github.com/Piktet/azopkov.git/internal/config"
 	"github.com/Piktet/azopkov.git/internal/handler"
 	"github.com/go-chi/chi/v5"
 )
@@ -26,7 +27,7 @@ func main() {
 
 	// Запускаем HTTP-сервер
 	//panic при ошибке
-	if err := http.ListenAndServe(addr, router); err != nil {
+	if err := http.ListenAndServe(config.GetServerAddress(), router); err != nil {
 		panic(err)
 	}
 }
