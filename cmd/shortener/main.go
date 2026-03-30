@@ -10,11 +10,13 @@ import (
 
 // addr — адрес
 // Формат: "хост:порт" — localhost:8080.
-const addr = "localhost:8080"
+//const addr = "localhost:8080"
 
 func main() {
 	// Создаём новый экземпляр HTTP-сервера
-	srv := handler.New(addr)
+	//srv := handler.New(addr)
+	config := config.New()
+	srv := handler.New(config.GetBaseAddress())
 
 	// Инициализируем роутер
 	router := chi.NewRouter()
