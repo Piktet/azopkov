@@ -13,7 +13,8 @@ import (
 const (
 	defaultServerAddress = ""
 	defaultServerPort    = "8080"
-	defaultBaseAddress   = "http://localhost:8080"
+	//defaultBaseAddress   = "http://localhost:8080"
+	defaultBaseAddress = "localhost:8080"
 )
 
 type Config struct {

@@ -66,10 +66,10 @@ func (p *StorageServer) format(path string) string {
 //   - 400 Bad Request
 func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) {
 	// Проверка HTTP-метода
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+	// if r.Method != http.MethodPost {
+	// 	w.WriteHeader(http.StatusBadRequest)
+	// 	return
+	// }
 
 	// Проверка типа содержимого
 	contentType := r.Header.Get("Content-Type")
