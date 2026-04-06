@@ -2,6 +2,8 @@ package config
 
 import (
 	"flag"
+	"os"
+
 	"net"
 	"net/url"
 	"strings"
@@ -11,10 +13,15 @@ import (
 // Флаг -b отвечает за базовый адрес результирующего сокращённого URL (значение: адрес сервера перед коротким URL, например, http://localhost:8000/qsd54gFg).
 
 const (
-	defaultServerAddress = ""
-	defaultServerPort    = "8080"
-	//defaultBaseAddress   = "http://localhost:8080"
-	defaultBaseAddress = "localhost:8080"
+	defaultServerAddress = ":8080"
+	flagServerAddress    = "a"
+	envServerAddress     = "SERVER_ADDRESS"
+	descServerAddress    = "адрес запуска HTTP-сервера"
+
+	defaultBaseAddress = "http://localhost:8080"
+	flagBaseAddress    = "b"
+	envBaseAddress     = "BASE_URL"
+	descBaseAddress    = "базовый адрес результирующего сокращённого URL"
 )
 
 type Config struct {
@@ -23,26 +30,32 @@ type Config struct {
 }
 
 func New() *Config {
-	res := &Config{}
-	flag.StringVar(&res.serverAddress, "a", ":8080", "адрес HTTP-сервера")
-	flag.StringVar(&res.baseAddress, "b", defaultBaseAddress, "базовый адрес сокращённого URL")
+
+	serverAddress := setAddress(envServerAddress, flagServerAddress, defaultServerAddress, descServerAddress)
+	baseAddress := setAddress(envBaseAddress, flagBaseAddress, defaultBaseAddress, descBaseAddress)
 
 	flag.Parse()
 
-	res.serverAddress = validateServerAddress(res.serverAddress, defaultServerAddress, defaultServerPort)
-	res.baseAddress = validateBaseAddress(res.baseAddress, defaultBaseAddress)
-
-	return res
+	return &Config{
+		serverAddress: validateServerAddress(*serverAddress, defaultServerAddress),
+		baseAddress:   validateBaseAddress(*baseAddress, defaultBaseAddress),
+	}
 }
 
-func validateServerAddress(address, defaultAddress, defaultPort string) string {
+func setAddress(envAddress, flagName, defaultAddress, description string) *string {
+	flagaddress := flag.String(flagName, defaultAddress, description)
+	if address, ok := os.LookupEnv(envAddress); ok && address != "" {
+		return &address
+	}
+	return flagaddress
+}
+
+func validateServerAddress(address, defaultAddress string) string {
 	addrList := strings.Split(address, ":")
-	if len(addrList) < 1 || len(addrList) > 2 {
-		return net.JoinHostPort(defaultAddress, defaultPort)
+	if len(addrList) < 1 || len(addrList) > 2 || len(addrList) == 1 && addrList[0] == "" {
+		return defaultAddress
 	}
-	if addrList[0] == "" {
-		addrList[0] = defaultAddress
-	}
+
 	if len(addrList) < 2 || addrList[1] == "" {
 		return addrList[0]
 	}
@@ -54,6 +67,7 @@ func validateBaseAddress(address, defaultAddress string) string {
 	if err != nil {
 		return defaultAddress
 	}
+
 	if u.Scheme == "" || u.Host == "" {
 		return defaultAddress
 	}
