@@ -18,7 +18,7 @@ const (
 	envServerAddress     = "SERVER_ADDRESS"
 	descServerAddress    = "адрес запуска HTTP-сервера"
 
-	defaultBaseAddress = "http://localhost:8080"
+	defaultBaseAddress = "localhost:8080"
 	flagBaseAddress    = "b"
 	envBaseAddress     = "BASE_URL"
 	descBaseAddress    = "базовый адрес результирующего сокращённого URL"

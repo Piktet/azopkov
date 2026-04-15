@@ -15,8 +15,8 @@ import (
 func main() {
 	// Создаём новый экземпляр HTTP-сервера
 	//srv := handler.New(addr)
-	config := config.New()
-	srv := handler.New(config.GetBaseAddress())
+	cfg := config.New()
+	srv := handler.New(cfg.GetBaseAddress())
 
 	// Инициализируем роутер
 	router := chi.NewRouter()
@@ -29,7 +29,7 @@ func main() {
 
 	// Запускаем HTTP-сервер
 	//panic при ошибке
-	if err := http.ListenAndServe(config.GetServerAddress(), router); err != nil {
+	if err := http.ListenAndServe(cfg.GetServerAddress(), router); err != nil {
 		panic(err)
 	}
 }
