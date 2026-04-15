@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/Piktet/azopkov.git/internal/config"
@@ -26,6 +27,9 @@ func main() {
 	// - GET /{id} → редирект по ID
 	router.Post(`/`, srv.HandlerPostFull)
 	router.Get(`/{id}`, srv.HandlerGetFull)
+
+	fmt.Println(cfg.GetServerAddress())
+	fmt.Println(cfg.GetBaseAddress())
 
 	// Запускаем HTTP-сервер
 	//panic при ошибке

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -12,33 +11,20 @@ import (
 
 // HTTP-сервер для сокращения URL.
 type StorageServer struct {
-	service.Storage         // соответствие short <-> full
-	u               url.URL // URL (например, http://localhost:8080)
+	service.Storage          // соответствие short <-> full
+	u               *url.URL // URL (например, http://localhost:8080)
 }
 
 // New новый экземпляр сервера в формате "host:port".
 // По умолчанию "localhost".
 // При ошибке - panic-а
-func New(addr string) *StorageServer {
-	host, port, err := net.SplitHostPort(addr)
+func New(address string) *StorageServer {
+	u, err := url.Parse(address)
 	if err != nil {
 		panic(err)
 	}
-	if host == "" {
-		host = "localhost"
-	}
 
-	// Формируем базовый URL сервера
-	u := url.URL{
-		Scheme: "http",
-		Host:   net.JoinHostPort(host, port),
-	}
-
-	// Возвращаем указатель на новый сервер с инициализированным хранилищем
-	return &StorageServer{
-		Storage: service.New(), // Инициализация бизнес-логики
-		u:       u,
-	}
+	return &(StorageServer{Storage: service.New(), u: u})
 }
 
 // format преобразует путь (например, "/EwHXdJfB") в полный URL.
