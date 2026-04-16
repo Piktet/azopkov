@@ -5,6 +5,7 @@ import (
 
 	"github.com/Piktet/azopkov.git/internal/config"
 	"github.com/Piktet/azopkov.git/internal/handler"
+	"github.com/Piktet/azopkov.git/internal/logger"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -16,6 +17,10 @@ func main() {
 	// Создаём новый экземпляр HTTP-сервера
 	//srv := handler.New(addr)
 	cfg := config.New()
+	if err := logger.InitLogger("info"); err != nil {
+		panic(err)
+	}
+
 	srv := handler.New(cfg.GetBaseAddress())
 
 	// Инициализируем роутер
@@ -24,8 +29,8 @@ func main() {
 	// Регистрируем обработчики:
 	// - POST / → создание короткого URL
 	// - GET /{id} → редирект по ID
-	router.Post(`/`, srv.HandlerPostFull)
-	router.Get(`/{id}`, srv.HandlerGetFull)
+	router.Post(`/`, logger.WithLogging(srv.HandlerPostFull))
+	router.Get(`/{id}`, logger.WithLogging(srv.HandlerGetFull))
 
 	// Запускаем HTTP-сервер
 	//panic при ошибке
