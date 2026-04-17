@@ -31,6 +31,7 @@ func main() {
 	// - GET /{id} → редирект по ID
 	router.Post(`/`, logger.WithLogging(srv.HandlerPostFull))
 	router.Get(`/{id}`, logger.WithLogging(srv.HandlerGetFull))
+	router.Post(`/api/shorten`, logger.WithLogging(srv.HandlerPostFullJSON))
 
 	// Запускаем HTTP-сервер
 	//panic при ошибке

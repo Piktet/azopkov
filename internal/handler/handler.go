@@ -1,13 +1,31 @@
 package handler
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 
+	"github.com/Piktet/azopkov.git/internal/logger"
 	"github.com/Piktet/azopkov.git/internal/service"
+	"go.uber.org/zap"
 )
+
+const (
+	headerContentType = "Content-Type"
+	headerLocation    = "Location"
+	contentTypeText   = "text/plain"
+	contextTypeJSON   = "application/json"
+)
+
+type Request struct {
+	Full string `json:"url"`
+}
+
+type Response struct {
+	Short string `json:"result"`
+}
 
 // HTTP-сервер для сокращения URL.
 type StorageServer struct {
@@ -130,4 +148,61 @@ func (p *StorageServer) HandlerGetFull(w http.ResponseWriter, r *http.Request) {
 
 	// Отправка временного редиректа (307)
 	w.WriteHeader(http.StatusTemporaryRedirect)
+}
+
+// Эндпоинт с методом POST и путём /.
+// Сервер принимает в теле запроса JSON URL как application/json
+// и возвращает ответ с кодом 201 и сокращённым JSON URL как application/json.
+func (p *StorageServer) HandlerPostFullJSON(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		logger.Log().Debug("error method")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	contentType := r.Header.Get(headerContentType)
+	if contentType != contextTypeJSON {
+		logger.Log().Debug("error contect type")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// Читаем тело запроса
+	var request Request
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(&request); err != nil {
+		logger.Log().Debug("error decoding request", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	full := strings.TrimSpace(string(request.Full))
+	if _, err := url.ParseRequestURI(full); err != nil {
+		logger.Log().Debug("error parsing request", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	short, err := p.GetShort(full)
+	if err != nil {
+		logger.Log().Debug("error getting short", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	response := Response{
+		Short: p.format(short),
+	}
+
+	enc, err := json.Marshal(response)
+	if err != nil {
+		logger.Log().Debug("error encoding response", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+
+	}
+
+	w.Header().Set(headerContentType, contextTypeJSON)
+	w.WriteHeader(http.StatusCreated)
+	w.Write(enc)
 }

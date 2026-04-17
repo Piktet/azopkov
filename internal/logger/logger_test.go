@@ -6,13 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/Piktet/azopkov.git/internal/handler"
 )
 
 func TestInitLogger(t *testing.T) {
+
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
@@ -42,13 +40,6 @@ func TestInitLogger(t *testing.T) {
 
 func TestWithLogging(t *testing.T) {
 
-	server := handler.New("localhost:8080")
-
-	router := chi.NewRouter()
-
-	router.Post(`/`, WithLogging(server.HandlerPostFull))
-	router.Get(`/{id}`, WithLogging(server.HandlerGetFull))
-
 	body := strings.NewReader("http://yandex.ru")
 	contentType := "text/plain"
 
@@ -60,12 +51,12 @@ func TestWithLogging(t *testing.T) {
 	}{
 		{
 			name: "positiveGetFull",
-			h:    server.HandlerGetFull,
+			h:    func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusBadRequest) },
 			want: http.StatusBadRequest,
 		},
 		{
 			name: "positivePostFull",
-			h:    server.HandlerPostFull,
+			h:    func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusCreated) },
 			want: http.StatusCreated,
 		},
 	}
@@ -88,7 +79,6 @@ func TestWithLogging(t *testing.T) {
 }
 
 func Test_loggingResponseWriter_Write(t *testing.T) {
-	//server := handler.New(config.DefaultConfig.GetBaseAddress())
 
 	data := []byte("qwerty")
 	tests := []struct {
@@ -107,14 +97,10 @@ func Test_loggingResponseWriter_Write(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			w := httptest.NewRecorder()
-			//r := httptest.NewRequest(http.MethodGet, "/", nil)
-
 			lw := loggingResponseWriter{
 				ResponseWriter: w, // встраиваем оригинальный http.ResponseWriter
 				responseData:   &responseData{},
 			}
-
-			// server.HandlerGetFull(&lw, r)
 			len, err := lw.Write(test.b)
 			if assert.NoError(t, err) {
 				assert.Equal(t, test.want, lw.responseData.size)
@@ -125,7 +111,6 @@ func Test_loggingResponseWriter_Write(t *testing.T) {
 }
 
 func Test_loggingResponseWriter_WriteHeader(t *testing.T) {
-	//server := handler.New(config.DefaultConfig.GetBaseAddress())
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
@@ -134,21 +119,17 @@ func Test_loggingResponseWriter_WriteHeader(t *testing.T) {
 	}{
 		{
 			name:   "positive",
-			status: 200,
-			want:   200,
+			status: http.StatusOK,
+			want:   http.StatusOK,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			w := httptest.NewRecorder()
-			//r := httptest.NewRequest(http.MethodGet, "/", nil)
-
 			lw := loggingResponseWriter{
 				ResponseWriter: w, // встраиваем оригинальный http.ResponseWriter
 				responseData:   &responseData{},
 			}
-
-			// server.HandlerGetFull(&lw, r)
 			lw.WriteHeader(test.status)
 			assert.Equal(t, test.want, lw.responseData.status)
 

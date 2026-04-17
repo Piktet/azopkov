@@ -22,23 +22,37 @@ const (
 	flagBaseAddress    = "b"
 	envBaseAddress     = "BASE_URL"
 	descBaseAddress    = "базовый адрес результирующего сокращённого URL"
+
+	defaultLogLevel = "Debug"
+	flagLogLevel    = "l"
+	envLogLevel     = "LOG_LEVEL"
+	descLogLevel    = "уровень логирования"
 )
+
+var DefaultConfig = &Config{
+	serverAddress: defaultServerAddress,
+	baseAddress:   defaultBaseAddress,
+	logLevel:      defaultLogLevel,
+}
 
 type Config struct {
 	serverAddress string
 	baseAddress   string
+	logLevel      string
 }
 
 func New() *Config {
 
 	serverAddress := setAddress(envServerAddress, flagServerAddress, defaultServerAddress, descServerAddress)
 	baseAddress := setAddress(envBaseAddress, flagBaseAddress, defaultBaseAddress, descBaseAddress)
+	logLevel := setAddress(envLogLevel, flagLogLevel, defaultLogLevel, descLogLevel)
 
 	flag.Parse()
 
 	return &Config{
 		serverAddress: validateServerAddress(*serverAddress, defaultServerAddress),
 		baseAddress:   validateBaseAddress(*baseAddress, defaultBaseAddress),
+		logLevel:      *logLevel,
 	}
 }
 
@@ -81,4 +95,8 @@ func (c *Config) GetBaseAddress() string {
 
 func (c *Config) GetServerAddress() string {
 	return c.serverAddress
+}
+
+func (c *Config) GetLogLevel() string {
+	return c.logLevel
 }
