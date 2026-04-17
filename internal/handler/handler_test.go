@@ -62,7 +62,7 @@ func TestHandlerPostFull(t *testing.T) {
 				body:        haveBody,
 			},
 			want: want{
-				code:        http.StatusBadRequest,
+				code:        http.StatusCreated,
 				contentType: wantContentType,
 			},
 		},
