@@ -150,7 +150,7 @@ func (p *StorageServer) HandlerGetFull(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Location", full)
+	w.Header().Set(headerLocation, full)
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
