@@ -11,11 +11,13 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/mabishka/lupanova/internal/model"
 	"github.com/stretchr/testify/assert"
 )
 
-const addr = "localhost:8080"
+const (
+	addr            = "localhost:8080"
+	contentTypeJSON = "application/json"
+)
 
 func TestStorageServer_HandlerPostFull(t *testing.T) {
 
@@ -39,8 +41,8 @@ func TestStorageServer_HandlerPostFull(t *testing.T) {
 
 	haveMethod := http.MethodPost
 	haveBody := "http://ya.ru"
-	haveContentType := model.ContentTypeText
-	wantContentType := model.ContentTypeText
+	haveContentType := contentTypeText
+	wantContentType := contentTypeText
 
 	tests := []struct {
 		name string
@@ -101,7 +103,7 @@ func TestStorageServer_HandlerPostFull(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			body := strings.NewReader(test.have.body)
 			r := httptest.NewRequest(test.have.method, `/`, body)
-			r.Header.Add(model.HeaderContentType, test.have.contentType)
+			r.Header.Add(headerContentType, test.have.contentType)
 			w := httptest.NewRecorder()
 			server.HandlerPostFull(w, r)
 
@@ -230,8 +232,8 @@ func TestStorageServer_HandlerPostFullJSON(t *testing.T) {
 
 	haveMethod := http.MethodPost
 	haveBody := `{ "url": "http://ya.ru" }`
-	haveContentType := model.ContentTypeJSON
-	wantContentType := model.ContentTypeJSON
+	haveContentType := contentTypeJSON
+	wantContentType := contentTypeJSON
 
 	tests := []struct {
 		name string // description of this test case
@@ -292,7 +294,7 @@ func TestStorageServer_HandlerPostFullJSON(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			body := strings.NewReader(test.have.body)
 			r := httptest.NewRequest(test.have.method, `/api/shorten`, body)
-			r.Header.Add(model.HeaderContentType, test.have.contentType)
+			r.Header.Add(headerContentType, test.have.contentType)
 			w := httptest.NewRecorder()
 			server.HandlerPostFullJSON(w, r)
 
@@ -303,9 +305,9 @@ func TestStorageServer_HandlerPostFullJSON(t *testing.T) {
 			assert.Equal(t, test.want.code, result.StatusCode)
 
 			if result.StatusCode == http.StatusCreated {
-				assert.Equal(t, test.want.contentType, result.Header.Get(model.HeaderContentType))
+				assert.Equal(t, test.want.contentType, result.Header.Get(headerContentType))
 
-				var response model.Response
+				var response Response
 				err := json.Unmarshal(haveShort, &response)
 				if assert.NoError(t, err) {
 					_, err := url.ParseRequestURI(string(response.Short))
