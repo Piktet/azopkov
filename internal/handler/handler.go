@@ -9,6 +9,7 @@ import (
 
 	"github.com/Piktet/azopkov.git/internal/logger"
 	"github.com/Piktet/azopkov.git/internal/service"
+	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
 
@@ -76,8 +77,15 @@ func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) 
 	// }
 
 	// Проверка типа содержимого
-	contentType := r.Header.Get("Content-Type")
-	if contentType != "text/plain" {
+	if r.Method != http.MethodPost {
+		logger.Log().Debug("error method")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	contentType := r.Header.Get(headerContentType)
+	if contentType != contentTypeText {
+		logger.Log().Debug("error content type")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -85,21 +93,24 @@ func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) 
 	// Чтение тела
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
+		logger.Log().Debug("error getting request", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close() // закрытие
 
 	// Очистка от пробелов и проверка URL
-	fullURL := strings.TrimSpace(string(body))
-	if _, err := url.ParseRequestURI(fullURL); err != nil {
+	full := strings.TrimSpace(string(body))
+	if _, err := url.ParseRequestURI(full); err != nil {
+		logger.Log().Debug("error parsing request", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	// Получение короткого идентификатора
-	short, err := p.GetShort(fullURL)
+	short, err := p.GetShort(full)
 	if err != nil {
+		logger.Log().Debug("error getting short", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -125,28 +136,21 @@ func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) 
 func (p *StorageServer) HandlerGetFull(w http.ResponseWriter, r *http.Request) {
 	// Проверка метода
 	if r.Method != http.MethodGet {
+		logger.Log().Debug("error method")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	// Извлечение идентификатора из пути
-	id := r.PathValue("id")
-	if id == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	// Поиск полного URL
+	id := chi.URLParam(r, "id")
 	full, err := p.GetFull(id)
 	if err != nil {
+		logger.Log().Debug("error getting full", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	// Установка заголовка
 	w.Header().Set("Location", full)
-
-	// Отправка временного редиректа (307)
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 

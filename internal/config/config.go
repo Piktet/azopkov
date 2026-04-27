@@ -14,14 +14,14 @@ import (
 
 const (
 	defaultServerAddress = ":8080"
-	flagServerAddress    = "a"
-	envServerAddress     = "SERVER_ADDRESS"
-	descServerAddress    = "адрес запуска HTTP-сервера"
+	defaultBaseAddress   = "http://localhost:8080"
 
-	defaultBaseAddress = "http://localhost:8080"
-	flagBaseAddress    = "b"
-	envBaseAddress     = "BASE_URL"
-	descBaseAddress    = "базовый адрес результирующего сокращённого URL"
+	flagServerAddress = "a"
+	flagBaseAddress   = "b"
+	envBaseAddress    = "BASE_URL"
+	envServerAddress  = "SERVER_ADDRESS"
+	descServerAddress = "адрес запуска HTTP-сервера"
+	descBaseAddress   = "базовый адрес результирующего сокращённого URL"
 
 	defaultLogLevel = "Debug"
 	flagLogLevel    = "l"

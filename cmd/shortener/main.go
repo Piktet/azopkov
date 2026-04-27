@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 
+	"github.com/Piktet/azopkov.git/internal/compress"
 	"github.com/Piktet/azopkov.git/internal/config"
 	"github.com/Piktet/azopkov.git/internal/handler"
 	"github.com/Piktet/azopkov.git/internal/logger"
@@ -29,9 +30,9 @@ func main() {
 	// Регистрируем обработчики:
 	// - POST / → создание короткого URL
 	// - GET /{id} → редирект по ID
-	router.Post(`/`, logger.WithLogging(srv.HandlerPostFull))
-	router.Get(`/{id}`, logger.WithLogging(srv.HandlerGetFull))
-	router.Post(`/api/shorten`, logger.WithLogging(srv.HandlerPostFullJSON))
+	router.Post(`/`, logger.WithLogging(compress.WithCompress(srv.HandlerPostFull)))
+	router.Get(`/{id}`, logger.WithLogging(compress.WithCompress(srv.HandlerGetFull)))
+	router.Post(`/api/shorten`, logger.WithLogging(compress.WithCompress(srv.HandlerPostFullJSON)))
 
 	// Запускаем HTTP-сервер
 	//panic при ошибке
