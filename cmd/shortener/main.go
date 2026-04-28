@@ -25,7 +25,7 @@ func main() {
 	}
 
 	srv := handler.New(cfg.GetBaseAddress())
-	loader := fileloader.New(config.GetFileName())
+	loader := fileloader.New(cfg.GetFileName())
 	if err := srv.Load(loader); err != nil {
 		panic(err)
 	}
