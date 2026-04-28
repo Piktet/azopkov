@@ -2,11 +2,13 @@ package main
 
 import (
 	"net/http"
+	// "context"
 
 	"github.com/Piktet/azopkov.git/internal/compress"
 	"github.com/Piktet/azopkov.git/internal/config"
 	"github.com/Piktet/azopkov.git/internal/handler"
 	"github.com/Piktet/azopkov.git/internal/logger"
+	"github.com/Piktet/azopkov.git/internal/repository/fileloader"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -23,7 +25,10 @@ func main() {
 	}
 
 	srv := handler.New(cfg.GetBaseAddress())
-
+	loader := fileloader.New(config.GetFileName())
+	if err := srv.Load(loader); err != nil {
+		panic(err)
+	}
 	// Инициализируем роутер
 	router := chi.NewRouter()
 

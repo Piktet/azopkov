@@ -18,27 +18,33 @@ const (
 
 	flagServerAddress = "a"
 	flagBaseAddress   = "b"
+	flagFileName      = "f"
+	flagLogLevel      = "l"
 	envBaseAddress    = "BASE_URL"
 	envServerAddress  = "SERVER_ADDRESS"
 	descServerAddress = "адрес запуска HTTP-сервера"
 	descBaseAddress   = "базовый адрес результирующего сокращённого URL"
+	defaultFileName   = "./storage.json"
 
 	defaultLogLevel = "Debug"
-	flagLogLevel    = "l"
 	envLogLevel     = "LOG_LEVEL"
 	descLogLevel    = "уровень логирования"
+	envFileName     = "FILE_STORAGE_PATH"
+	descFileName    = "файл для хранения сокращенных адресов"
 )
 
 var DefaultConfig = &Config{
 	serverAddress: defaultServerAddress,
 	baseAddress:   defaultBaseAddress,
 	logLevel:      defaultLogLevel,
+	fileName:      defaultFileName,
 }
 
 type Config struct {
 	serverAddress string
 	baseAddress   string
 	logLevel      string
+	fileName      string
 }
 
 func New() *Config {
@@ -46,6 +52,7 @@ func New() *Config {
 	serverAddress := setAddress(envServerAddress, flagServerAddress, defaultServerAddress, descServerAddress)
 	baseAddress := setAddress(envBaseAddress, flagBaseAddress, defaultBaseAddress, descBaseAddress)
 	logLevel := setAddress(envLogLevel, flagLogLevel, defaultLogLevel, descLogLevel)
+	fileName := setAddress(envFileName, flagFileName, defaultFileName, descFileName)
 
 	flag.Parse()
 
@@ -53,6 +60,7 @@ func New() *Config {
 		serverAddress: validateServerAddress(*serverAddress, defaultServerAddress),
 		baseAddress:   validateBaseAddress(*baseAddress, defaultBaseAddress),
 		logLevel:      *logLevel,
+		fileName:      *fileName,
 	}
 }
 
@@ -99,4 +107,8 @@ func (c *Config) GetServerAddress() string {
 
 func (c *Config) GetLogLevel() string {
 	return c.logLevel
+}
+
+func (c *Config) GetFileName() string {
+	return c.fileName
 }
