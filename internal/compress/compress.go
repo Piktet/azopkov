@@ -18,6 +18,7 @@ const (
 	compressTypeDeflate   = "deflate"
 	compressTypeEmpty     = ""
 	headerContentEncoding = "Content-Encoding"
+	headerContentType     = "Content-Type"
 	headerAcceptEncoding  = "Accept-Encoding"
 )
 
@@ -35,7 +36,7 @@ func (w *compressResponseWriter) Write(b []byte) (int, error) {
 	if w.writer != nil {
 		return w.writer.Write(b)
 	}
-	return w.Write(b)
+	return w.ResponseWriter.Write(b)
 }
 
 func (w *compressResponseWriter) Close() {
@@ -84,14 +85,17 @@ func compress(w http.ResponseWriter, r *http.Request) ResponseWriter {
 	cw := &compressResponseWriter{
 		ResponseWriter: w,
 	}
-
+	x := r.Header.Get(headerContentType)
+	if x != "application/json" && x != "text/html" {
+		return cw
+	}
 	for _, contentType := range r.Header.Values(headerAcceptEncoding) {
 		var compressType string
 		compressLevel := 1
 		for _, value := range strings.Split(contentType, ",") {
 			value = strings.TrimSpace(value)
 			if strings.HasPrefix(value, "q=") {
-				fmt.Scanf("q=%d", compressLevel)
+				fmt.Sscanf(value, "q=%d", compressLevel)
 				continue
 			}
 			if value != "" {

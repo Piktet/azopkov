@@ -201,7 +201,7 @@ func (p *StorageServer) HandlerPostFullJSON(w http.ResponseWriter, r *http.Reque
 	enc, err := json.Marshal(response)
 	if err != nil {
 		logger.Log().Debug("error encoding response", zap.Error(err))
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 
 	}
