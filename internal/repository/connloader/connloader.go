@@ -47,6 +47,18 @@ func (p *ConnLoader) Load(ctx context.Context) (map[string]string, error) {
 		return nil, err
 	}
 
+	if _, err := p.conn.ExecContext(ctx,
+		`CREATE TABLE IF NOT EXISTS t_data (
+    		id SERIAL PRIMARY KEY,
+    		s_full VARCHAR(1000) NOT NULL,
+    		s_short VARCHAR(100) NOT NULL
+		);
+		CREATE INDEX IF NOT EXISTS idx_data_full ON t_data(s_full);
+		CREATE INDEX IF NOT EXISTS idx_data_short ON t_data(s_short); `); err != nil {
+
+		return nil, err
+	}
+
 	rows, err := p.conn.QueryContext(ctx, "select s_full, s_short from t_data")
 	if err != nil {
 		return nil, err

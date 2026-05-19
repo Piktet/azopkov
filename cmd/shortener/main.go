@@ -32,8 +32,10 @@ func main() {
 
 	srv := handler.New(cfg.GetBaseAddress())
 	var loader model.StorageLoader
+	var conn model.ConnLoader
 	if cfg.GetConnAddress() != "" {
 		loader = connloader.New(cfg.GetConnAddress())
+		conn, _ = loader.(model.ConnLoader)
 		if err := srv.Load(context.Background(), loader); err != nil {
 			logger.Log().Error("conn not loaded", zap.Error(err))
 			loader = nil
@@ -57,7 +59,6 @@ func main() {
 		logger.Log().Info("memory storage usage")
 	}
 
-	conn, _ := loader.(model.ConnLoader)
 	connServer := handler.NewConn(conn)
 
 	// Инициализируем роутер
