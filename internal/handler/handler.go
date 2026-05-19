@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Piktet/azopkov.git/internal/logger"
+	"github.com/Piktet/azopkov.git/internal/model"
 	"github.com/Piktet/azopkov.git/internal/service"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
@@ -209,4 +211,34 @@ func (p *StorageServer) HandlerPostFullJSON(w http.ResponseWriter, r *http.Reque
 	w.Header().Set(headerContentType, contextTypeJSON)
 	w.WriteHeader(http.StatusCreated)
 	w.Write(enc)
+}
+
+type ConnLoader interface {
+	Load(context.Context) error
+	Ping(context.Context) error
+}
+type ConnServer struct {
+	ConnLoader
+}
+
+func NewConn(x ConnLoader) *ConnServer {
+	return &ConnServer{ConnLoader: x}
+}
+
+func (p *ConnServer) HandlerGetPing(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method != http.MethodGet {
+		logger.Log().Debug("error method")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := p.Ping(context.TODO()); err != nil {
+		logger.Log().Debug("error ping", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set(model.HeaderContentType, model.ContentTypeJSON)
+	w.WriteHeader(http.StatusOK)
 }

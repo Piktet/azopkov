@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"net/http"
+
 	// "context"
 
 	"github.com/Piktet/azopkov.git/internal/compress"
 	"github.com/Piktet/azopkov.git/internal/config"
 	"github.com/Piktet/azopkov.git/internal/handler"
 	"github.com/Piktet/azopkov.git/internal/logger"
+	"github.com/Piktet/azopkov.git/internal/repository/connloader"
 	"github.com/Piktet/azopkov.git/internal/repository/fileloader"
 	"github.com/go-chi/chi/v5"
 )
@@ -29,6 +32,13 @@ func main() {
 	if err := srv.Load(loader); err != nil {
 		panic(err)
 	}
+
+	conn := connloader.New(cfg.GetConnAddress())
+	if err := conn.Load(context.TODO()); err == nil {
+		logger.Log().Error("conn not loaded")
+	}
+	connServer := handler.NewConn(conn)
+
 	// Инициализируем роутер
 	router := chi.NewRouter()
 
@@ -38,6 +48,7 @@ func main() {
 	router.Post(`/`, logger.WithLogging(compress.WithCompress(srv.HandlerPostFull)))
 	router.Get(`/{id}`, logger.WithLogging(compress.WithCompress(srv.HandlerGetFull)))
 	router.Post(`/api/shorten`, logger.WithLogging(compress.WithCompress(srv.HandlerPostFullJSON)))
+	router.Get(`/ping`, logger.WithLogging(compress.WithCompress(connServer.HandlerGetPing)))
 
 	// Запускаем HTTP-сервер
 	//panic при ошибке

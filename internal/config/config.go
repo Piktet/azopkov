@@ -31,6 +31,11 @@ const (
 	descLogLevel    = "уровень логирования"
 	envFileName     = "FILE_STORAGE_PATH"
 	descFileName    = "файл для хранения сокращенных адресов"
+
+	defaultConnAddress = "user=postgres dbname=postgres sslmode=verify-full"
+	flagConnAddress    = "d"
+	envConnAddress     = "DATABASE_DSN "
+	descConnAddress    = "строка с адресом подключения к БД"
 )
 
 var DefaultConfig = &Config{
@@ -38,6 +43,7 @@ var DefaultConfig = &Config{
 	baseAddress:   defaultBaseAddress,
 	logLevel:      defaultLogLevel,
 	fileName:      defaultFileName,
+	connAddress:   defaultConnAddress,
 }
 
 type Config struct {
@@ -45,6 +51,7 @@ type Config struct {
 	baseAddress   string
 	logLevel      string
 	fileName      string
+	connAddress   string
 }
 
 func New() *Config {
@@ -53,6 +60,7 @@ func New() *Config {
 	baseAddress := setAddress(envBaseAddress, flagBaseAddress, defaultBaseAddress, descBaseAddress)
 	logLevel := setAddress(envLogLevel, flagLogLevel, defaultLogLevel, descLogLevel)
 	fileName := setAddress(envFileName, flagFileName, defaultFileName, descFileName)
+	connAddress := setAddress(envConnAddress, flagConnAddress, defaultConnAddress, descConnAddress)
 
 	flag.Parse()
 
@@ -61,6 +69,7 @@ func New() *Config {
 		baseAddress:   validateBaseAddress(*baseAddress, defaultBaseAddress),
 		logLevel:      *logLevel,
 		fileName:      *fileName,
+		connAddress:   *connAddress,
 	}
 }
 
@@ -111,4 +120,8 @@ func (c *Config) GetLogLevel() string {
 
 func (c *Config) GetFileName() string {
 	return c.fileName
+}
+
+func (c *Config) GetConnAddress() string {
+	return c.connAddress
 }
