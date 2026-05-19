@@ -1,6 +1,7 @@
 package fileloader
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"sync"
@@ -22,7 +23,7 @@ func New(fileName string) *FileLoader {
 }
 
 // return map [short string] full string
-func (p *FileLoader) Load() (map[string]string, error) {
+func (p *FileLoader) Load(ctx context.Context) (map[string]string, error) {
 
 	if err := p.create(); err != nil {
 		return nil, err
@@ -50,8 +51,7 @@ func (p *FileLoader) Load() (map[string]string, error) {
 	return response, nil
 }
 
-func (p *FileLoader) Store(full, short string) error {
-
+func (p *FileLoader) Store(ctx context.Context, full, short string) error {
 	if err := p.create(); err != nil {
 		return err
 	}

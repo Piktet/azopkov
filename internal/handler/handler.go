@@ -32,8 +32,8 @@ type Response struct {
 
 // HTTP-сервер для сокращения URL.
 type StorageServer struct {
-	service.Storage          // соответствие short <-> full
-	u               *url.URL // URL (например, http://localhost:8080)
+	model.Storage          // соответствие short <-> full
+	u             *url.URL // URL (например, http://localhost:8080)
 }
 
 // New новый экземпляр сервера в формате "host:port".
@@ -46,6 +46,10 @@ func New(address string) *StorageServer {
 	}
 
 	return &(StorageServer{Storage: service.New(), u: u})
+}
+
+func (p *StorageServer) SetLoader(loader model.Storage) {
+	p.Storage = loader
 }
 
 // format преобразует путь (например, "/EwHXdJfB") в полный URL.
@@ -110,7 +114,7 @@ func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Получение короткого идентификатора
-	short, err := p.GetShort(full)
+	short, err := p.GetShort(r.Context(), full)
 	if err != nil {
 		logger.Log().Debug("error getting short", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
@@ -145,7 +149,7 @@ func (p *StorageServer) HandlerGetFull(w http.ResponseWriter, r *http.Request) {
 
 	// Извлечение идентификатора из пути
 	id := chi.URLParam(r, "id")
-	full, err := p.GetFull(id)
+	full, err := p.GetFull(r.Context(), id)
 	if err != nil {
 		logger.Log().Debug("error getting full", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
@@ -189,7 +193,7 @@ func (p *StorageServer) HandlerPostFullJSON(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	short, err := p.GetShort(full)
+	short, err := p.GetShort(r.Context(), full)
 	if err != nil {
 		logger.Log().Debug("error getting short", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
@@ -213,15 +217,11 @@ func (p *StorageServer) HandlerPostFullJSON(w http.ResponseWriter, r *http.Reque
 	w.Write(enc)
 }
 
-type ConnLoader interface {
-	Load(context.Context) error
-	Ping(context.Context) error
-}
 type ConnServer struct {
-	ConnLoader
+	model.ConnLoader
 }
 
-func NewConn(x ConnLoader) *ConnServer {
+func NewConn(x model.ConnLoader) *ConnServer {
 	return &ConnServer{ConnLoader: x}
 }
 

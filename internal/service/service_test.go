@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,7 +11,7 @@ func TestServer_GetFull(t *testing.T) {
 
 	full := "http://yandex.ru"
 	server := New()
-	short, err := server.GetShort(full)
+	short, err := server.GetShort(context.TODO(), full)
 	if err != nil {
 		t.Error(err)
 		return
@@ -39,7 +40,7 @@ func TestServer_GetFull(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 
-			got, err := server.GetFull(test.short)
+			got, err := server.GetFull(context.TODO(), test.short)
 
 			if test.wantErr {
 				assert.Error(t, err)
@@ -56,7 +57,7 @@ func TestServer_GetFull(t *testing.T) {
 func TestServer_GetShort(t *testing.T) {
 	full := "http://yandex.ru"
 	server := New()
-	short, err := server.GetShort(full)
+	short, err := server.GetShort(context.TODO(), full)
 	if err != nil {
 		t.Error(err)
 		return
@@ -76,7 +77,7 @@ func TestServer_GetShort(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, err := server.GetShort(test.full)
+			got, err := server.GetShort(context.TODO(), test.full)
 			assert.NoError(t, err)
 			assert.Equal(t, test.want, got, "full")
 		})

@@ -144,7 +144,7 @@ func TestStorageServer_HandlerGetFull(t *testing.T) {
 
 	haveMethod := http.MethodGet
 	full := "http://yandex.ru"
-	short, err := server.GetShort(full)
+	short, err := server.GetShort(context.TODO(), full)
 	if err != nil {
 		t.Error(err)
 		return

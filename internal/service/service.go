@@ -1,26 +1,15 @@
 package service
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"strings"
 	"sync"
+
+	"github.com/Piktet/azopkov.git/internal/model"
 )
-
-type StorageLoader interface {
-	Load() (map[string]string, error) // return map [short string] full string
-	Store(string, string) error       // store (full, short)
-}
-
-// Storage — интерфейс для работы с хранилищем URL.
-//   - GetShort — получить короткий идентификатор
-//   - GetFull — получить полный URL
-type Storage interface {
-	GetShort(full string) (string, error)
-	GetFull(short string) (string, error)
-	Load(loader StorageLoader) error
-}
 
 // Server — реализация интерфейса Storage.
 //   - мапа хранения соответствий short → full URL.
@@ -30,7 +19,7 @@ type Server struct {
 	*sync.RWMutex // Позволяет использовать RWMutex через встраивание
 	shortList     map[string]string
 	fullList      map[string]string
-	loader        StorageLoader
+	loader        model.StorageLoader
 }
 
 // shortLen — длина генерируемых коротких идентификаторов (в символах).
@@ -45,9 +34,9 @@ func New() *Server {
 	}
 }
 
-func (p *Server) Load(loader StorageLoader) error {
+func (p *Server) Load(ctx context.Context, loader model.StorageLoader) error {
 	p.loader = loader
-	list, err := loader.Load()
+	list, err := loader.Load(ctx)
 	if err != nil {
 		return err
 	}
@@ -59,11 +48,11 @@ func (p *Server) Load(loader StorageLoader) error {
 	return nil
 }
 
-func (p *Server) store(full, short string) error {
+func (p *Server) store(ctx context.Context, full, short string) error {
 	p.shortList[short] = full
 	p.fullList[full] = short
 	if p.loader != nil {
-		if err := p.loader.Store(full, short); err != nil {
+		if err := p.loader.Store(ctx, full, short); err != nil {
 			return err
 		}
 	}
@@ -72,7 +61,7 @@ func (p *Server) store(full, short string) error {
 
 // GetShort возвращает короткий идентификатор
 // Если URL нет — генерирует новый
-func (p *Server) GetShort(full string) (string, error) {
+func (p *Server) GetShort(ctx context.Context, full string) (string, error) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -85,7 +74,7 @@ func (p *Server) GetShort(full string) (string, error) {
 		return "", err
 	}
 
-	if err := p.store(full, short); err != nil {
+	if err := p.store(ctx, full, short); err != nil {
 		return "", err
 	}
 	p.shortList[short] = full
@@ -93,7 +82,7 @@ func (p *Server) GetShort(full string) (string, error) {
 }
 
 // GetFull возвращает полный URL
-func (p *Server) GetFull(short string) (string, error) {
+func (p *Server) GetFull(ctx context.Context, short string) (string, error) {
 	p.RLock()
 	defer p.RUnlock()
 

@@ -4,12 +4,15 @@ import (
 	"context"
 	"net/http"
 
+	"go.uber.org/zap"
+
 	// "context"
 
 	"github.com/Piktet/azopkov.git/internal/compress"
 	"github.com/Piktet/azopkov.git/internal/config"
 	"github.com/Piktet/azopkov.git/internal/handler"
 	"github.com/Piktet/azopkov.git/internal/logger"
+	"github.com/Piktet/azopkov.git/internal/model"
 	"github.com/Piktet/azopkov.git/internal/repository/connloader"
 	"github.com/Piktet/azopkov.git/internal/repository/fileloader"
 	"github.com/go-chi/chi/v5"
@@ -28,15 +31,33 @@ func main() {
 	}
 
 	srv := handler.New(cfg.GetBaseAddress())
-	loader := fileloader.New(cfg.GetFileName())
-	if err := srv.Load(loader); err != nil {
-		panic(err)
+	var loader model.StorageLoader
+	if cfg.GetConnAddress() != "" {
+		loader = connloader.New(cfg.GetConnAddress())
+		if err := srv.Load(context.Background(), loader); err != nil {
+			logger.Log().Error("conn not loaded", zap.Error(err))
+			loader = nil
+		} else {
+			logger.Log().Info("conn storage usage")
+		}
 	}
 
-	conn := connloader.New(cfg.GetConnAddress())
-	if err := conn.Load(context.TODO()); err == nil {
-		logger.Log().Error("conn not loaded")
+	if loader == nil && cfg.GetFileName() != "" {
+		loader = fileloader.New(cfg.GetFileName())
+
+		if err := srv.Load(context.Background(), loader); err != nil {
+			logger.Log().Error("file not loaded", zap.Error(err))
+			loader = nil
+		} else {
+			logger.Log().Info("file storage usage")
+		}
 	}
+
+	if loader == nil {
+		logger.Log().Info("memory storage usage")
+	}
+
+	conn, _ := loader.(model.ConnLoader)
 	connServer := handler.NewConn(conn)
 
 	// Инициализируем роутер
