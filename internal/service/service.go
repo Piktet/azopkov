@@ -2,13 +2,15 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
+	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"sync"
 
+	"github.com/Piktet/azopkov.git/internal/logger"
 	"github.com/Piktet/azopkov.git/internal/model"
+	"go.uber.org/zap"
 )
 
 // Server — реализация интерфейса Storage.
@@ -31,80 +33,122 @@ func New() *Server {
 		RWMutex:   &sync.RWMutex{},
 		shortList: make(map[string]string),
 		fullList:  make(map[string]string),
+		loader:    &memLoader{},
 	}
 }
 
 func (p *Server) Load(ctx context.Context, loader model.StorageLoader) error {
-	p.loader = loader
+	if loader == nil {
+		return errors.New("empty loader")
+	}
 	list, err := loader.Load(ctx)
 	if err != nil {
+		logger.Log().Error("Server.Load", zap.Error(err))
 		return err
 	}
-	p.shortList = list
 
-	for k, v := range p.shortList {
-		p.fullList[v] = k
+	p.addList(list)
+
+	p.loader = loader
+	return nil
+}
+
+func checkFull(full string) error {
+	if _, err := url.ParseRequestURI(full); err != nil {
+		logger.Log().Error("checkFull", zap.Error(err))
+		return err
 	}
 	return nil
 }
 
-func (p *Server) store(ctx context.Context, full, short string) error {
-	p.shortList[short] = full
-	p.fullList[full] = short
-	if p.loader != nil {
-		if err := p.loader.Store(ctx, full, short); err != nil {
-			return err
+func (p *Server) GetShortList(ctx context.Context, fullList []model.FullItem) ([]model.ShortItem, error) {
+	shortList := make([]model.ShortItem, 0, len(fullList))
+	storeList := make([]model.FullItem, 0, len(fullList))
+	for _, v := range fullList {
+
+		if err := checkFull(v.Full); err != nil {
+			return nil, err
+		}
+
+		if short, err := p.getShort(v.Full); err == nil {
+			shortList = append(shortList, model.ShortItem{Corr: v.Corr, Short: short})
+			continue
+		}
+		storeList = append(storeList, v)
+	}
+
+	newList, err := p.loader.GetShortList(ctx, storeList)
+
+	if newList != nil {
+		for _, v := range storeList {
+			short, ok := newList[v.Full]
+			if !ok {
+				err = errors.Join(err, fmt.Errorf("short not created for full %s", v.Full))
+			}
+			p.addItem(v.Full, short)
+			shortList = append(shortList, model.ShortItem{Corr: v.Corr, Short: short})
 		}
 	}
-	return nil
+
+	return shortList, err
 }
 
 // GetShort возвращает короткий идентификатор
 // Если URL нет — генерирует новый
 func (p *Server) GetShort(ctx context.Context, full string) (string, error) {
-	p.Lock()
-	defer p.Unlock()
 
-	if short, ok := p.fullList[full]; ok {
+	logger.Log().Info("service.GetFull", zap.String("full", full))
+
+	if err := checkFull(full); err != nil {
+		return "", err
+	}
+
+	if short, err := p.getShort(full); err == nil {
 		return short, nil
 	}
 
-	short, err := CreateShort(shortLen)
+	// Значение не найдено в памяти. Берем его из хранилища и сохраняем в память
+	short, err := p.loader.GetShort(ctx, full)
 	if err != nil {
 		return "", err
 	}
 
-	if err := p.store(ctx, full, short); err != nil {
-		return "", err
-	}
-	p.shortList[short] = full
+	p.addItem(full, short)
+
 	return short, nil
+}
+
+func (p *Server) GetFullList(ctx context.Context, shortList []model.ShortItem) ([]model.FullItem, error) {
+	fullList := make([]model.FullItem, 0, len(shortList))
+	for _, v := range shortList {
+		full, err := p.GetFull(ctx, v.Short)
+		if err != nil {
+			return nil, err
+		}
+		fullList = append(fullList, model.FullItem{Corr: v.Corr, Full: full})
+	}
+	return fullList, nil
 }
 
 // GetFull возвращает полный URL
 func (p *Server) GetFull(ctx context.Context, short string) (string, error) {
-	p.RLock()
-	defer p.RUnlock()
 
-	// Удаляем /
+	logger.Log().Info("service.GetFull", zap.String("short", short))
+
 	short = strings.Trim(short, "/")
-
-	// Проверяем наличие
-	if full, ok := p.shortList[short]; ok {
-		return full, nil // Возвращаем найденный URL
+	if full, err := p.getFull(short); err == nil {
+		logger.Log().Info("service.GetFull from memory", zap.String("short", short), zap.String("full", full))
+		return full, nil
 	}
 
-	// Если не найдено — ошибка
-	return "", fmt.Errorf("path %s not found", short)
-}
-
-// CreateShort генерирует строку длиной n.
-func CreateShort(n int) (string, error) {
-	b := make([]byte, n)
-	_, err := rand.Read(b)
+	// Значение не найдено в памяти. Берем его из хранилища.
+	short, err := p.loader.GetFull(ctx, short)
 	if err != nil {
+		logger.Log().Info("service.GetFull get error", zap.Error(err))
 		return "", err
 	}
-	// Кодируем в base64 для URL
-	return base64.URLEncoding.EncodeToString(b)[:n], nil
+
+	logger.Log().Info("service.GetFull not found")
+	return "", fmt.Errorf("path %s not found", short)
+
 }

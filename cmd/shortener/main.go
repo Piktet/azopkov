@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"go.uber.org/zap"
@@ -23,12 +24,26 @@ import (
 //const addr = "localhost:8080"
 
 func main() {
+	ctx, fnCancel := context.WithCancelCause(context.Background())
+	defer fnCancel(errors.New("exit"))
+	run(ctx)
+}
+
+func run(ctx context.Context) {
 	// Создаём новый экземпляр HTTP-сервера
 	//srv := handler.New(addr)
 	cfg := config.New()
 	if err := logger.InitLogger("info"); err != nil {
 		panic(err)
 	}
+
+	logger.Log().Info("config",
+		zap.String("serverAddress", cfg.GetServerAddress()),
+		zap.String("baseAddress", cfg.GetBaseAddress()),
+		zap.String("logLevel", cfg.GetLogLevel()),
+		zap.String("fileName", cfg.GetFileName()),
+		zap.String("connAddress", cfg.GetConnAddress()),
+	)
 
 	srv := handler.New(cfg.GetBaseAddress())
 	var loader model.StorageLoader
@@ -37,11 +52,12 @@ func main() {
 		loader = connloader.New(cfg.GetConnAddress())
 		conn, _ = loader.(model.ConnLoader)
 		if err := srv.Load(context.Background(), loader); err != nil {
-			logger.Log().Error("conn not loaded", zap.Error(err))
+			logger.Log().Info("conn not loaded", zap.Error(err))
 			loader = nil
 		} else {
 			logger.Log().Info("conn storage usage")
 		}
+
 	}
 
 	if loader == nil && cfg.GetFileName() != "" {
@@ -61,20 +77,26 @@ func main() {
 
 	connServer := handler.NewConn(conn)
 
-	// Инициализируем роутер
 	router := chi.NewRouter()
 
-	// Регистрируем обработчики:
-	// - POST / → создание короткого URL
-	// - GET /{id} → редирект по ID
-	router.Post(`/`, logger.WithLogging(compress.WithCompress(srv.HandlerPostFull)))
-	router.Get(`/{id}`, logger.WithLogging(compress.WithCompress(srv.HandlerGetFull)))
-	router.Post(`/api/shorten`, logger.WithLogging(compress.WithCompress(srv.HandlerPostFullJSON)))
-	router.Get(`/ping`, logger.WithLogging(compress.WithCompress(connServer.HandlerGetPing)))
+	router.Use(logger.WithLogging)
+	router.Use(compress.WithCompress)
 
+	router.Post("/", srv.HandlerPostFull)
+	router.Post("/api/shorten", srv.HandlerPostFullJSON)
+	router.Post("/api/shorten/batch", srv.HandlerPostBatch)
+	router.Get("/{id}", srv.HandlerGetFull)
+	router.Get("/ping", connServer.HandlerGetPing)
+
+	go func() {
+		if err := http.ListenAndServe(cfg.GetServerAddress(), router); err != nil {
+			panic(err)
+		}
+	}()
 	// Запускаем HTTP-сервер
 	//panic при ошибке
-	if err := http.ListenAndServe(cfg.GetServerAddress(), router); err != nil {
-		panic(err)
-	}
+	logger.Log().Info("listen port", zap.String("serverAddress", cfg.GetServerAddress()))
+
+	<-ctx.Done()
+	logger.Log().Info("exit")
 }

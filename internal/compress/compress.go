@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Piktet/azopkov.git/internal/logger"
+	"github.com/Piktet/azopkov.git/internal/model"
 	"go.uber.org/zap"
 )
 
@@ -30,6 +31,7 @@ type ResponseWriter interface {
 type compressResponseWriter struct {
 	http.ResponseWriter // встраиваем оригинальный http.ResponseWriter
 	writer              io.WriteCloser
+	contentEncoding     string
 }
 
 func (w *compressResponseWriter) Write(b []byte) (int, error) {
@@ -56,7 +58,7 @@ func decompress(r *http.Request) *http.Request {
 	case compressTypeGzip:
 		gz, err := gzip.NewReader(r.Body)
 		if err != nil {
-			logger.Log().Debug("decompress error",
+			logger.Log().Error("decompress error",
 				zap.Error(err),
 				zap.String(headerContentEncoding, decompressType))
 			return r
@@ -65,7 +67,7 @@ func decompress(r *http.Request) *http.Request {
 	case compressTypeDeflate:
 		lz, err := zlib.NewReader(r.Body)
 		if err != nil {
-			logger.Log().Debug("decompress error",
+			logger.Log().Error("decompress error",
 				zap.Error(err),
 				zap.String(headerContentEncoding, decompressType))
 			return r
@@ -73,7 +75,7 @@ func decompress(r *http.Request) *http.Request {
 		r.Body = lz
 	case compressTypeEmpty:
 	default:
-		logger.Log().Debug("decompress error",
+		logger.Log().Error("decompress error",
 			zap.Error(errors.New("unsupport decompress type")),
 			zap.String(headerContentEncoding, decompressType))
 	}
@@ -85,17 +87,19 @@ func compress(w http.ResponseWriter, r *http.Request) ResponseWriter {
 	cw := &compressResponseWriter{
 		ResponseWriter: w,
 	}
-	x := r.Header.Get(headerContentType)
-	if x != "application/json" && x != "text/html" {
+
+	content := w.Header().Get(model.HeaderContentType)
+	if content != model.ContentTypeJSON && content != model.ContentTypeHTML {
 		return cw
 	}
-	for _, contentType := range r.Header.Values(headerAcceptEncoding) {
+
+	for _, contentEncoding := range r.Header.Values(model.HeaderAcceptEncoding) {
 		var compressType string
 		compressLevel := 1
-		for _, value := range strings.Split(contentType, ",") {
+		for _, value := range strings.Split(contentEncoding, ",") {
 			value = strings.TrimSpace(value)
 			if strings.HasPrefix(value, "q=") {
-				fmt.Sscanf(value, "q=%d", compressLevel)
+				fmt.Scanf("q=%d", compressLevel)
 				continue
 			}
 			if value != "" {
@@ -108,25 +112,27 @@ func compress(w http.ResponseWriter, r *http.Request) ResponseWriter {
 
 			gz, err := gzip.NewWriterLevel(w, compressLevel)
 			if err != nil {
-				logger.Log().Debug("compress error",
+				logger.Log().Error("compress error",
 					zap.Error(err),
 					zap.String(headerContentEncoding, compressType))
 
 				continue
 			}
-			w.Header().Set(headerContentEncoding, compressType)
+			cw.contentEncoding = compressType
+			cw.Header().Set(headerContentEncoding, compressType)
 			cw.writer = gz
 			return cw
 		case compressTypeDeflate:
 			lz, err := zlib.NewWriterLevel(w, compressLevel)
 			if err != nil {
-				logger.Log().Debug("compress error",
+				logger.Log().Error("compress error",
 					zap.Error(err),
 					zap.String(headerContentEncoding, compressType))
 
 				continue
 			}
-			w.Header().Set(headerContentEncoding, compressType)
+			cw.contentEncoding = compressType
+			cw.Header().Set(headerContentEncoding, compressType)
 			cw.writer = lz
 			return cw
 		}
@@ -135,8 +141,7 @@ func compress(w http.ResponseWriter, r *http.Request) ResponseWriter {
 	return cw
 }
 
-func WithCompress(h http.HandlerFunc) http.HandlerFunc {
-
+func WithCompress(h http.Handler) http.Handler {
 	compressFn := func(w http.ResponseWriter, r *http.Request) {
 
 		cr := decompress(r)

@@ -83,46 +83,48 @@ func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) 
 	// }
 
 	// Проверка типа содержимого
+
+	logger.Log().Info("HandlerPostFull")
 	if r.Method != http.MethodPost {
-		logger.Log().Debug("error method")
+		logger.Log().Error("error method")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	contentType := r.Header.Get(headerContentType)
-	if contentType != contentTypeText {
-		logger.Log().Debug("error content type")
+	contentType := r.Header.Get(model.HeaderContentType)
+	if contentType != model.ContentTypeText {
+		logger.Log().Error("error content type")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	// Чтение тела
+	// Читаем тело запроса
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		logger.Log().Debug("error getting request", zap.Error(err))
+		logger.Log().Error("error getting request", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close() // закрытие
+	defer r.Body.Close()
 
 	// Очистка от пробелов и проверка URL
 	full := strings.TrimSpace(string(body))
 	if _, err := url.ParseRequestURI(full); err != nil {
-		logger.Log().Debug("error parsing request", zap.Error(err))
+		logger.Log().Error("error parsing request", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	// Получение короткого идентификатора
-	short, err := p.GetShort(r.Context(), full)
+	short, err := p.GetShort(context.TODO(), full)
 	if err != nil {
-		logger.Log().Debug("error getting short", zap.Error(err))
+		logger.Log().Error("error getting short", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	// Формирование ответа
-	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Set(model.HeaderContentType, model.ContentTypeText)
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(p.format(short)))
 }
@@ -140,23 +142,29 @@ func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) 
 // Ошибки:
 //   - 400 Bad Request
 func (p *StorageServer) HandlerGetFull(w http.ResponseWriter, r *http.Request) {
-	// Проверка метода
+
+	logger.Log().Info("HandlerGetFull")
 	if r.Method != http.MethodGet {
-		logger.Log().Debug("error method")
+		logger.Log().Error("error method")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	// Извлечение идентификатора из пути
 	id := chi.URLParam(r, "id")
-	full, err := p.GetFull(r.Context(), id)
+
+	if id == "" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	full, err := p.GetFull(context.TODO(), id)
 	if err != nil {
-		logger.Log().Debug("error getting full", zap.Error(err))
+		logger.Log().Error("error getting full", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	w.Header().Set(headerLocation, full)
+	w.Header().Set(model.HeaderLocation, full)
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
@@ -164,55 +172,58 @@ func (p *StorageServer) HandlerGetFull(w http.ResponseWriter, r *http.Request) {
 // Сервер принимает в теле запроса JSON URL как application/json
 // и возвращает ответ с кодом 201 и сокращённым JSON URL как application/json.
 func (p *StorageServer) HandlerPostFullJSON(w http.ResponseWriter, r *http.Request) {
+
+	logger.Log().Info("HandlerPostFullJSON")
+
 	if r.Method != http.MethodPost {
-		logger.Log().Debug("error method")
+		logger.Log().Error("error method")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	contentType := r.Header.Get(headerContentType)
-	if contentType != contextTypeJSON {
-		logger.Log().Debug("error contect type")
+	contentType := r.Header.Get(model.HeaderContentType)
+	if contentType != model.ContentTypeJSON {
+		logger.Log().Error("error contect type")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	// Читаем тело запроса
-	var request Request
+	var request model.Request
 	dec := json.NewDecoder(r.Body)
 	if err := dec.Decode(&request); err != nil {
-		logger.Log().Debug("error decoding request", zap.Error(err))
+		logger.Log().Error("error decoding request", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	full := strings.TrimSpace(string(request.Full))
 	if _, err := url.ParseRequestURI(full); err != nil {
-		logger.Log().Debug("error parsing request", zap.Error(err))
+		logger.Log().Error("error parsing request", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	short, err := p.GetShort(r.Context(), full)
+	short, err := p.GetShort(context.TODO(), full)
 	if err != nil {
-		logger.Log().Debug("error getting short", zap.Error(err))
+		logger.Log().Error("error getting short", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	response := Response{
+	response := model.Response{
 		Short: p.format(short),
 	}
 
 	enc, err := json.Marshal(response)
 	if err != nil {
-		logger.Log().Debug("error encoding response", zap.Error(err))
-		w.WriteHeader(http.StatusInternalServerError)
+		logger.Log().Error("error encoding response", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
 		return
 
 	}
 
-	w.Header().Set(headerContentType, contextTypeJSON)
+	w.Header().Set(model.HeaderContentType, model.ContentTypeJSON)
 	w.WriteHeader(http.StatusCreated)
 	w.Write(enc)
 }
@@ -226,19 +237,78 @@ func NewConn(x model.ConnLoader) *ConnServer {
 }
 
 func (p *ConnServer) HandlerGetPing(w http.ResponseWriter, r *http.Request) {
-
+	logger.Log().Info("HandlerGetPing")
 	if r.Method != http.MethodGet {
-		logger.Log().Debug("error method")
+		logger.Log().Error("error method")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	if err := p.Ping(context.TODO()); err != nil {
-		logger.Log().Debug("error ping", zap.Error(err))
+		logger.Log().Error("error ping", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set(model.HeaderContentType, model.ContentTypeJSON)
 	w.WriteHeader(http.StatusOK)
+}
+
+// Эндпоинт /api/shorten/batch, принимающий в теле запроса множество URL для сокращения в формате json
+func (p *StorageServer) HandlerPostBatch(w http.ResponseWriter, r *http.Request) {
+
+	logger.Log().Info("HandlerPostBatch")
+	if r.Method != http.MethodPost {
+		logger.Log().Error("error method")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	contentType := r.Header.Get(model.HeaderContentType)
+	if contentType != model.ContentTypeJSON {
+		logger.Log().Error("error contect type")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// Читаем тело запроса
+	var request []model.FullItem
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(&request); err != nil {
+		logger.Log().Error("error decoding request", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	logger.Log().Info("request", zap.Int("count", len(request)))
+	response, err := p.GetShortList(context.TODO(), request)
+	if err != nil {
+		logger.Log().Error("error getting short", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	logger.Log().Info("response", zap.Int("count", len(response)))
+
+	formatResponse := make([]model.ShortItem, 0, len(response))
+	for _, v := range response {
+		//v.Short = p.format(v.Short)
+
+		formatResponse = append(formatResponse, model.ShortItem{Corr: v.Corr, Short: p.format(v.Short)})
+		logger.Log().Info("item", zap.String("short", v.Short))
+	}
+
+	jsonResponse, err := json.Marshal(formatResponse)
+	if err != nil {
+		logger.Log().Error("Error marshal JSON response = ", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	logger.Log().Info("response", zap.String("data", string(jsonResponse)))
+
+	w.Header().Set(model.HeaderContentType, model.ContentTypeJSON)
+	w.WriteHeader(http.StatusCreated)
+	w.Write(jsonResponse)
+
 }
