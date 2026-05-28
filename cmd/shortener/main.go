@@ -7,8 +7,6 @@ import (
 
 	"go.uber.org/zap"
 
-	// "context"
-
 	"github.com/Piktet/azopkov.git/internal/compress"
 	"github.com/Piktet/azopkov.git/internal/config"
 	"github.com/Piktet/azopkov.git/internal/handler"

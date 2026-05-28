@@ -3,6 +3,7 @@ package utils
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 )
 
 func CreateShort(n int) (string, error) {
@@ -13,3 +14,5 @@ func CreateShort(n int) (string, error) {
 	}
 	return base64.URLEncoding.EncodeToString(b)[:n], nil
 }
+
+var ErrConflict = errors.New("already exist")

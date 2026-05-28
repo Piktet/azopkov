@@ -66,19 +66,44 @@ func LoadList(ctx context.Context, conn Connector) (map[string]string, error) {
 	return list, nil
 }
 
-func store(ctx context.Context, conn Connector, full, short string) error {
-	_, err := conn.ExecContext(ctx, "insert into t_data(s_full, s_short) values($1, $2)", full, short)
+func GetFull(ctx context.Context, conn Connector, short string) (string, error) {
+	rows, err := conn.QueryContext(ctx, "select s_full from t_data where s_short = $1", short)
 	if err != nil {
-		logger.Log().Error("insert error", zap.Error(err))
+		logger.Log().Error("error", zap.Error(err))
+		return "", err
 	}
-	logger.Log().Info("inserted to db", zap.String("full", full), zap.String("short", short))
-	return err
+	defer rows.Close()
+
+	if !rows.Next() {
+		err := fmt.Errorf("full name for %s not found", short)
+		logger.Log().Info("error", zap.Error(err))
+		return "", fmt.Errorf("full name for %s not found", short)
+	}
+
+	var full *string
+	if err := rows.Scan(&full); err != nil {
+		logger.Log().Error("error", zap.Error(err))
+		return "", err
+	}
+
+	if err = rows.Err(); err != nil {
+		logger.Log().Error("error", zap.Error(err))
+		return "", err
+	}
+
+	if full == nil {
+		err := fmt.Errorf("full name for %s is empty", short)
+		logger.Log().Error("error", zap.Error(err))
+		return "", fmt.Errorf("full name for %s is empty", short)
+	}
+
+	return *full, nil
 }
 
 func GetShort(ctx context.Context, conn Connector, full string) (string, error) {
 	if short, err := getShort(ctx, conn, full); err == nil {
 		logger.Log().Info("GetShort from db ok", zap.String("full", full), zap.String("short", short))
-		return short, nil
+		return short, utils.ErrConflict
 	}
 
 	short, err := utils.CreateShort(config.ShortLen)
@@ -92,6 +117,16 @@ func GetShort(ctx context.Context, conn Connector, full string) (string, error) 
 		return "", err
 	}
 	return short, nil
+}
+
+func store(ctx context.Context, conn Connector, full, short string) error {
+	_, err := conn.ExecContext(ctx, "insert into t_data(s_full, s_short) values($1, $2)", full, short)
+	if err != nil {
+		logger.Log().Error("insert error", zap.Error(err))
+		return err
+	}
+	logger.Log().Info("inserted to db", zap.String("full", full), zap.String("short", short))
+	return nil
 }
 
 func getShort(ctx context.Context, conn Connector, full string) (string, error) {
@@ -126,38 +161,4 @@ func getShort(ctx context.Context, conn Connector, full string) (string, error) 
 	}
 
 	return *short, nil
-}
-
-func GetFull(ctx context.Context, conn Connector, short string) (string, error) {
-	rows, err := conn.QueryContext(ctx, "select s_full from t_data where s_short = $1", short)
-	if err != nil {
-		logger.Log().Error("error", zap.Error(err))
-		return "", err
-	}
-	defer rows.Close()
-
-	if !rows.Next() {
-		err := fmt.Errorf("full name for %s not found", short)
-		logger.Log().Info("error", zap.Error(err))
-		return "", fmt.Errorf("full name for %s not found", short)
-	}
-
-	var full *string
-	if err := rows.Scan(&full); err != nil {
-		logger.Log().Error("error", zap.Error(err))
-		return "", err
-	}
-
-	if err = rows.Err(); err != nil {
-		logger.Log().Error("error", zap.Error(err))
-		return "", err
-	}
-
-	if full == nil {
-		err := fmt.Errorf("full name for %s is empty", short)
-		logger.Log().Error("error", zap.Error(err))
-		return "", fmt.Errorf("full name for %s is empty", short)
-	}
-
-	return *full, nil
 }
