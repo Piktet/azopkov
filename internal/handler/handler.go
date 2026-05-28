@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 	"github.com/Piktet/azopkov.git/internal/logger"
 	"github.com/Piktet/azopkov.git/internal/model"
 	"github.com/Piktet/azopkov.git/internal/service"
+	"github.com/Piktet/azopkov.git/pkg/utils"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
@@ -28,6 +30,14 @@ type Request struct {
 
 type Response struct {
 	Short string `json:"result"`
+}
+
+type ConnServer struct {
+	model.ConnLoader
+}
+
+func NewConn(x model.ConnLoader) *ConnServer {
+	return &ConnServer{ConnLoader: x}
 }
 
 // HTTP-сервер для сокращения URL.
@@ -107,7 +117,6 @@ func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) 
 	}
 	defer r.Body.Close()
 
-	// Очистка от пробелов и проверка URL
 	full := strings.TrimSpace(string(body))
 	if _, err := url.ParseRequestURI(full); err != nil {
 		logger.Log().Error("error parsing request", zap.Error(err))
@@ -115,17 +124,19 @@ func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Получение короткого идентификатора
-	short, err := p.GetShort(context.TODO(), full)
-	if err != nil {
+	short, shorterr := p.GetShort(context.TODO(), full)
+	if shorterr != nil && !errors.Is(shorterr, utils.ErrConflict) {
 		logger.Log().Error("error getting short", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	// Формирование ответа
 	w.Header().Set(model.HeaderContentType, model.ContentTypeText)
-	w.WriteHeader(http.StatusCreated)
+	if shorterr != nil {
+		w.WriteHeader(http.StatusConflict)
+	} else {
+		w.WriteHeader(http.StatusCreated)
+	}
 	w.Write([]byte(p.format(short)))
 }
 
@@ -204,9 +215,9 @@ func (p *StorageServer) HandlerPostFullJSON(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	short, err := p.GetShort(context.TODO(), full)
-	if err != nil {
-		logger.Log().Error("error getting short", zap.Error(err))
+	short, shorterr := p.GetShort(context.TODO(), full)
+	if shorterr != nil && !errors.Is(shorterr, utils.ErrConflict) {
+		logger.Log().Error("error getting short", zap.Error(shorterr))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -224,19 +235,16 @@ func (p *StorageServer) HandlerPostFullJSON(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.Header().Set(model.HeaderContentType, model.ContentTypeJSON)
-	w.WriteHeader(http.StatusCreated)
+	if shorterr != nil {
+		w.WriteHeader(http.StatusConflict)
+	} else {
+		w.WriteHeader(http.StatusCreated)
+	}
 	w.Write(enc)
 }
 
-type ConnServer struct {
-	model.ConnLoader
-}
-
-func NewConn(x model.ConnLoader) *ConnServer {
-	return &ConnServer{ConnLoader: x}
-}
-
 func (p *ConnServer) HandlerGetPing(w http.ResponseWriter, r *http.Request) {
+
 	logger.Log().Info("HandlerGetPing")
 	if r.Method != http.MethodGet {
 		logger.Log().Error("error method")
@@ -250,7 +258,7 @@ func (p *ConnServer) HandlerGetPing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set(model.HeaderContentType, model.ContentTypeJSON)
+	w.Header().Set(model.HeaderContentType, model.ContentTypeText)
 	w.WriteHeader(http.StatusOK)
 }
 

@@ -38,7 +38,7 @@ const (
 
 	defaultConnAddress = ""
 	flagConnAddress    = "d"
-	envConnAddress     = "DATABASE_DSN "
+	envConnAddress     = "DATABASE_DSN"
 	descConnAddress    = "строка с адресом подключения к БД"
 )
 
