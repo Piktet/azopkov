@@ -7,6 +7,7 @@ import (
 	"github.com/Piktet/azopkov.git/internal/model"
 	"github.com/Piktet/azopkov.git/internal/repository/connloader"
 	"github.com/Piktet/azopkov.git/internal/repository/fileloader"
+	"github.com/Piktet/azopkov.git/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -91,7 +92,8 @@ func TestServer_GetShort(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			got, err := server.GetShort(context.TODO(), test.full)
-			assert.NoError(t, err)
+			assert.Error(t, err)
+			assert.Equal(t, err, utils.ErrConflict)
 			assert.Equal(t, test.want, got, "full")
 		})
 	}
