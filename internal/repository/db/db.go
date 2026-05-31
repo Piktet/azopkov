@@ -52,7 +52,7 @@ func LoadList(ctx context.Context, conn Connector) (map[string]string, error) {
 			return nil, err
 		}
 		if full != nil && short != nil {
-			list[*short] = *full
+			list[*full] = *short
 		}
 	}
 

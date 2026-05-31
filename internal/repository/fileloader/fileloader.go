@@ -50,7 +50,7 @@ func (p *FileLoader) Load(ctx context.Context) (map[string]string, error) {
 
 	response := make(map[string]string)
 	for _, v := range data {
-		response[v.Short] = v.Full
+		response[v.Full] = v.Short
 	}
 
 	return response, nil
