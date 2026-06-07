@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -9,31 +10,8 @@ import (
 
 var log *zap.Logger = zap.NewNop()
 
-type responseData struct {
-	status int
-	size   int
-}
-
 func Log() *zap.Logger {
 	return log
-}
-
-type loggingResponseWriter struct {
-	http.ResponseWriter // встраиваем оригинальный http.ResponseWriter
-	responseData        *responseData
-}
-
-func (r *loggingResponseWriter) Write(b []byte) (int, error) {
-	// записываем ответ, используя оригинальный http.ResponseWriter
-	size, err := r.ResponseWriter.Write(b)
-	r.responseData.size += size // захватываем размер
-	return size, err
-}
-
-func (r *loggingResponseWriter) WriteHeader(statusCode int) {
-	// записываем код статуса, используя оригинальный http.ResponseWriter
-	r.ResponseWriter.WriteHeader(statusCode)
-	r.responseData.status = statusCode // захватываем код статуса
 }
 
 func InitLogger(level string) error {
@@ -56,7 +34,8 @@ func InitLogger(level string) error {
 	return nil
 }
 
-func WithLogging(h http.HandlerFunc) http.HandlerFunc {
+func WithLogging(h http.Handler) http.Handler {
+
 	logFn := func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
@@ -75,7 +54,9 @@ func WithLogging(h http.HandlerFunc) http.HandlerFunc {
 			zap.Duration("duration", duration),
 			zap.Int("status", responseData.status), // получаем перехваченный код статуса ответа
 			zap.Int("size", responseData.size),     // получаем перехваченный размер ответа
+			zap.String("headers", fmt.Sprintf("%+v", responseData.headers)),
 		)
+
 	}
 	return http.HandlerFunc(logFn)
 }

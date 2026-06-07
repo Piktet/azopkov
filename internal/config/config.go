@@ -2,35 +2,44 @@ package config
 
 import (
 	"flag"
-	"os"
-
 	"net"
 	"net/url"
+	"os"
 	"strings"
 )
 
 // Флаг -a отвечает за адрес запуска HTTP-сервера (значение может быть таким: localhost:8888).
 // Флаг -b отвечает за базовый адрес результирующего сокращённого URL (значение: адрес сервера перед коротким URL, например, http://localhost:8000/qsd54gFg).
+// Флаг -l отвечает за уровень логирования (значение по умолчанию: "Info")
+// Флаг -f путь до файла, куда сохраняются данные в формате JSON (значение по умолчанию "./storage.json")
+
+const ShortLen = 6
 
 const (
 	defaultServerAddress = ":8080"
-	defaultBaseAddress   = "http://localhost:8080"
+	flagServerAddress    = "a"
+	envServerAddress     = "SERVER_ADDRESS"
+	descServerAddress    = "адрес запуска HTTP-сервера"
 
-	flagServerAddress = "a"
-	flagBaseAddress   = "b"
-	flagFileName      = "f"
-	flagLogLevel      = "l"
-	envBaseAddress    = "BASE_URL"
-	envServerAddress  = "SERVER_ADDRESS"
-	descServerAddress = "адрес запуска HTTP-сервера"
-	descBaseAddress   = "базовый адрес результирующего сокращённого URL"
-	defaultFileName   = "./storage.json"
+	defaultBaseAddress = "http://localhost:8080"
+	flagBaseAddress    = "b"
+	envBaseAddress     = "BASE_URL"
+	descBaseAddress    = "базовый адрес результирующего сокращённого URL"
 
-	defaultLogLevel = "Debug"
+	defaultLogLevel = "Info"
+	flagLogLevel    = "l"
 	envLogLevel     = "LOG_LEVEL"
 	descLogLevel    = "уровень логирования"
+
+	defaultFileName = ""
+	flagFileName    = "f"
 	envFileName     = "FILE_STORAGE_PATH"
 	descFileName    = "файл для хранения сокращенных адресов"
+
+	defaultConnAddress = ""
+	flagConnAddress    = "d"
+	envConnAddress     = "DATABASE_DSN"
+	descConnAddress    = "строка с адресом подключения к БД"
 )
 
 var DefaultConfig = &Config{
@@ -38,6 +47,7 @@ var DefaultConfig = &Config{
 	baseAddress:   defaultBaseAddress,
 	logLevel:      defaultLogLevel,
 	fileName:      defaultFileName,
+	connAddress:   defaultConnAddress,
 }
 
 type Config struct {
@@ -45,6 +55,7 @@ type Config struct {
 	baseAddress   string
 	logLevel      string
 	fileName      string
+	connAddress   string
 }
 
 func New() *Config {
@@ -53,6 +64,7 @@ func New() *Config {
 	baseAddress := setAddress(envBaseAddress, flagBaseAddress, defaultBaseAddress, descBaseAddress)
 	logLevel := setAddress(envLogLevel, flagLogLevel, defaultLogLevel, descLogLevel)
 	fileName := setAddress(envFileName, flagFileName, defaultFileName, descFileName)
+	connAddress := setAddress(envConnAddress, flagConnAddress, defaultConnAddress, descConnAddress)
 
 	flag.Parse()
 
@@ -61,6 +73,7 @@ func New() *Config {
 		baseAddress:   validateBaseAddress(*baseAddress, defaultBaseAddress),
 		logLevel:      *logLevel,
 		fileName:      *fileName,
+		connAddress:   *connAddress,
 	}
 }
 
@@ -111,4 +124,8 @@ func (c *Config) GetLogLevel() string {
 
 func (c *Config) GetFileName() string {
 	return c.fileName
+}
+
+func (c *Config) GetConnAddress() string {
+	return c.connAddress
 }
