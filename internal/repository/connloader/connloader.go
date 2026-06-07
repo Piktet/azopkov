@@ -67,7 +67,7 @@ func (p *ConnLoader) Load(ctx context.Context) (map[string]string, error) {
 	return db.LoadList(ctx, p.conn)
 }
 
-func (p *ConnLoader) GetShortList(ctx context.Context, fullList []model.FullItem) (map[string]string, error) {
+func (p *ConnLoader) GetShortList(ctx context.Context, fullList []model.FullItem, user string) (map[string]string, error) {
 
 	if err := p.Ping(ctx); err != nil {
 		logger.Log().Error("error", zap.Error(err))
@@ -85,7 +85,7 @@ func (p *ConnLoader) GetShortList(ctx context.Context, fullList []model.FullItem
 
 	for _, full := range fullList {
 
-		short, err := db.GetShort(ctx, tx, full.Full)
+		short, err := db.GetShort(ctx, tx, full.Full, user)
 		if err != nil {
 			logger.Log().Error("error", zap.Error(err))
 			tx.Rollback()
@@ -96,7 +96,7 @@ func (p *ConnLoader) GetShortList(ctx context.Context, fullList []model.FullItem
 	return shortList, tx.Commit()
 }
 
-func (p *ConnLoader) GetShort(ctx context.Context, full string) (string, error) {
+func (p *ConnLoader) GetShort(ctx context.Context, full string, user string) (string, error) {
 
 	if err := p.Ping(ctx); err != nil {
 		logger.Log().Error("error", zap.Error(err))
@@ -110,7 +110,7 @@ func (p *ConnLoader) GetShort(ctx context.Context, full string) (string, error) 
 	}
 	//defer tx.Rollback()
 
-	short, err := db.GetShort(ctx, tx, full)
+	short, err := db.GetShort(ctx, tx, full, user)
 	if err != nil {
 		logger.Log().Error("error", zap.Error(err))
 		tx.Rollback()
@@ -128,4 +128,13 @@ func (p *ConnLoader) GetFull(ctx context.Context, short string) (string, error) 
 	}
 
 	return db.GetFull(ctx, p.conn, short)
+}
+
+func (p *ConnLoader) GetUserList(ctx context.Context, user string) ([]model.StoreItem, error) {
+	if err := p.Ping(ctx); err != nil {
+		logger.Log().Error("error", zap.Error(err))
+		return nil, err
+	}
+
+	return db.GetUser(ctx, p.conn, user)
 }

@@ -7,6 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/Piktet/azopkov.git/internal/auth"
 	"github.com/Piktet/azopkov.git/internal/compress"
 	"github.com/Piktet/azopkov.git/internal/config"
 	"github.com/Piktet/azopkov.git/internal/handler"
@@ -79,12 +80,14 @@ func run(ctx context.Context) {
 
 	router.Use(logger.WithLogging)
 	router.Use(compress.WithCompress)
+	router.Use(auth.WithAuth)
 
 	router.Post("/", srv.HandlerPostFull)
 	router.Post("/api/shorten", srv.HandlerPostFullJSON)
 	router.Post("/api/shorten/batch", srv.HandlerPostBatch)
 	router.Get("/{id}", srv.HandlerGetFull)
 	router.Get("/ping", connServer.HandlerGetPing)
+	router.Get("/api/user/urls", srv.HandlerGetUser)
 
 	go func() {
 		if err := http.ListenAndServe(cfg.GetServerAddress(), router); err != nil {
