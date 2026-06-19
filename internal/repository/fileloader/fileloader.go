@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -140,7 +141,7 @@ func (p *FileLoader) GetFull(ctx context.Context, short string) (string, error) 
 }
 
 func (p *FileLoader) GetUserList(ctx context.Context, user string) ([]model.StoreItem, error) {
-	return nil, fmt.Errorf("unsupport")
+	return nil, errors.New("unsupport")
 
 }
 
@@ -245,4 +246,8 @@ func (p *FileLoader) exist() (bool, error) {
 	p.fileSize = stat.Size()
 
 	return p.fileSize != 0, nil
+}
+
+func (p *FileLoader) DeleteList(context.Context, []string, string) error {
+	return errors.New("unsupport")
 }

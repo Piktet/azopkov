@@ -28,7 +28,8 @@ func Create(ctx context.Context, conn Connector) error {
 		);
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_data_full ON t_data(s_full);
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_data_short ON t_data(s_short);
-		ALTER TABLE IF EXISTS t_data ADD COLUMN IF NOT EXISTS u_user uuid;`)
+		ALTER TABLE IF EXISTS t_data ADD COLUMN IF NOT EXISTS u_user uuid;
+		ALTER TABLE IF EXISTS t_data ADD COLUMN IF NOT EXISTS b_deleted boolean;`)
 
 	if err != nil {
 		logger.Log().Error("error", zap.Error(err))
@@ -38,7 +39,7 @@ func Create(ctx context.Context, conn Connector) error {
 
 func LoadList(ctx context.Context, conn Connector) (map[string]string, error) {
 
-	rows, err := conn.QueryContext(ctx, "select s_full, s_short from t_data")
+	rows, err := conn.QueryContext(ctx, "select s_full, s_short from t_data where not coalesce(b_deleted, false)")
 	if err != nil {
 		logger.Log().Error("select list from db error", zap.Error(err))
 		return nil, err
@@ -69,7 +70,7 @@ func LoadList(ctx context.Context, conn Connector) (map[string]string, error) {
 }
 
 func GetFull(ctx context.Context, conn Connector, short string) (string, error) {
-	rows, err := conn.QueryContext(ctx, "select s_full from t_data where s_short = $1", short)
+	rows, err := conn.QueryContext(ctx, "select s_full, coalesce(b_deleted, false) from t_data where s_short = $1", short)
 	if err != nil {
 		logger.Log().Error("error", zap.Error(err))
 		return "", err
@@ -83,7 +84,8 @@ func GetFull(ctx context.Context, conn Connector, short string) (string, error) 
 	}
 
 	var full *string
-	if err := rows.Scan(&full); err != nil {
+	var deleted bool
+	if err := rows.Scan(&full, &deleted); err != nil {
 		logger.Log().Error("error", zap.Error(err))
 		return "", err
 	}
@@ -97,6 +99,13 @@ func GetFull(ctx context.Context, conn Connector, short string) (string, error) 
 		err := fmt.Errorf("full name for %s is empty", short)
 		logger.Log().Error("error", zap.Error(err))
 		return "", fmt.Errorf("full name for %s is empty", short)
+	}
+
+	if deleted {
+		err := fmt.Errorf("full name for %s is deleted", short)
+		logger.Log().Error("error", zap.Error(err))
+		return "", model.ErrorDeleted
+
 	}
 
 	return *full, nil
@@ -122,7 +131,7 @@ func GetShort(ctx context.Context, conn Connector, full string, user string) (st
 }
 
 func GetUser(ctx context.Context, conn Connector, user string) ([]model.StoreItem, error) {
-	rows, err := conn.QueryContext(ctx, "select s_full, s_short from t_data where u_user = $1", user)
+	rows, err := conn.QueryContext(ctx, "select s_full, s_short from t_data where u_user = $1 and not coalesce(b_deleted, false)", user)
 	if err != nil {
 		logger.Log().Error("error", zap.Error(err))
 		return nil, err
@@ -147,6 +156,17 @@ func GetUser(ctx context.Context, conn Connector, user string) ([]model.StoreIte
 	return resp, nil
 }
 
+func Delete(ctx context.Context, conn Connector, short []string, user string) error {
+	_, err := conn.ExecContext(ctx, "update t_data set b_deleted = true where s_short = any($1) and u_user = $2", short, user)
+	if err != nil {
+		logger.Log().Error("delete error", zap.Error(err))
+		return err
+	}
+	logger.Log().Error("delete Ok", zap.String("short", fmt.Sprintf("%v", short)))
+
+	return nil
+}
+
 func store(ctx context.Context, conn Connector, full, short, user string) error {
 	_, err := conn.ExecContext(ctx, "insert into t_data(s_full, s_short, u_user) values($1, $2, $3)", full, short, user)
 	if err != nil {
@@ -158,7 +178,7 @@ func store(ctx context.Context, conn Connector, full, short, user string) error 
 }
 
 func getShort(ctx context.Context, conn Connector, full string) (string, error) {
-	rows, err := conn.QueryContext(ctx, "select s_short from t_data where s_full = $1", full)
+	rows, err := conn.QueryContext(ctx, "select s_short, coalesce(b_deleted, false) from t_data where s_full = $1", full)
 	if err != nil {
 		logger.Log().Error("error", zap.Error(err))
 		return "", err
@@ -172,7 +192,8 @@ func getShort(ctx context.Context, conn Connector, full string) (string, error) 
 	}
 
 	var short *string
-	if err := rows.Scan(&short); err != nil {
+	var deleted bool
+	if err := rows.Scan(&short, &deleted); err != nil {
 		logger.Log().Error("error", zap.Error(err))
 		return "", err
 	}
@@ -186,6 +207,12 @@ func getShort(ctx context.Context, conn Connector, full string) (string, error) 
 		err = fmt.Errorf("short name for %s is empty", full)
 		logger.Log().Error("error", zap.Error(err))
 		return "", fmt.Errorf("short name for %s is empty", full)
+	}
+
+	if deleted {
+		err = fmt.Errorf("short name for %s is deleted", full)
+		logger.Log().Error("error", zap.Error(err))
+		return "", model.ErrorDeleted
 	}
 
 	return *short, nil

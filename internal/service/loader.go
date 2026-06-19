@@ -43,3 +43,7 @@ func (p *memLoader) GetFull(ctx context.Context, short string) (string, error) {
 func (p *memLoader) GetUserList(ctx context.Context, user string) ([]model.StoreItem, error) {
 	return nil, errors.New("unsupported")
 }
+
+func (p *memLoader) DeleteList(context.Context, []string, string) error {
+	return errors.New("unsupport")
+}

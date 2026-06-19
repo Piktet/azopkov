@@ -26,27 +26,6 @@ func (p *StorageServer) HandlerGetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	/*
-		contentType := r.Header.Get(model.HeaderContentType)
-		if contentType != model.ContentTypeJSON {
-			logger.Log().Error("error context type")
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-	*/
-
-	/*
-		user, err := r.Cookie(model.CookieUser)
-		if err != nil {
-			if errors.Is(err, http.ErrNoCookie) {
-				w.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-	*/
-
 	response, err := p.GetUserList(context.TODO(), getUser(r))
 	if err != nil {
 		logger.Log().Error("error getting short", zap.Error(err))

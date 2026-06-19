@@ -156,3 +156,10 @@ func (p *Server) GetUserList(ctx context.Context, user string) ([]model.StoreIte
 	return p.loader.GetUserList(ctx, user)
 
 }
+
+func (p *Server) DeleteList(ctx context.Context, short []string, user string) error {
+	for _, v := range short {
+		p.deleteShort(v)
+	}
+	return p.loader.DeleteList(ctx, short, user)
+}

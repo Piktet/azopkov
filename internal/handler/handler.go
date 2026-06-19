@@ -103,7 +103,7 @@ func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) 
 
 	contentType := r.Header.Get(model.HeaderContentType)
 	if contentType != model.ContentTypeText {
-		logger.Log().Error("error content type")
+		logger.Log().Error("error context type")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -126,6 +126,11 @@ func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) 
 
 	short, shorterr := p.GetShort(context.TODO(), full, getUser(r))
 	if shorterr != nil && !errors.Is(shorterr, utils.ErrConflict) {
+		if errors.Is(shorterr, model.ErrorDeleted) {
+			logger.Log().Error("error getting short", zap.Error(err))
+			w.WriteHeader(http.StatusGone)
+			return
+		}
 		logger.Log().Error("error getting short", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -170,6 +175,11 @@ func (p *StorageServer) HandlerGetFull(w http.ResponseWriter, r *http.Request) {
 
 	full, err := p.GetFull(context.TODO(), id)
 	if err != nil {
+		if errors.Is(err, model.ErrorDeleted) {
+			logger.Log().Error("error getting full (is deleted)", zap.Error(err))
+			w.WriteHeader(http.StatusGone)
+			return
+		}
 		logger.Log().Error("error getting full", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -194,7 +204,7 @@ func (p *StorageServer) HandlerPostFullJSON(w http.ResponseWriter, r *http.Reque
 
 	contentType := r.Header.Get(model.HeaderContentType)
 	if contentType != model.ContentTypeJSON {
-		logger.Log().Error("error contect type")
+		logger.Log().Error("error context type")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -274,7 +284,7 @@ func (p *StorageServer) HandlerPostBatch(w http.ResponseWriter, r *http.Request)
 
 	contentType := r.Header.Get(model.HeaderContentType)
 	if contentType != model.ContentTypeJSON {
-		logger.Log().Error("error contect type")
+		logger.Log().Error("error context type")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
