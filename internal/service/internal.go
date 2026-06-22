@@ -58,7 +58,7 @@ func (p *Server) getFull(short string) (string, error) {
 func (p *Server) deleteShort(short string) {
 
 	p.Lock()
-	defer p.RUnlock()
+	defer p.Unlock()
 
 	delete(p.shortList, short)
 	for k, v := range p.fullList {
