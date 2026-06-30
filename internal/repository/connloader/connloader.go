@@ -3,6 +3,7 @@ package connloader
 import (
 	"context"
 	"database/sql"
+	"sync"
 
 	"github.com/Piktet/azopkov.git/internal/logger"
 	"github.com/Piktet/azopkov.git/internal/model"
@@ -12,8 +13,16 @@ import (
 	"go.uber.org/zap"
 )
 
+type Connector interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+
+	PingContext(context.Context) error
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+}
+
 type ConnLoader struct {
-	conn *sql.DB
+	conn Connector
 	addr string
 }
 
@@ -67,7 +76,7 @@ func (p *ConnLoader) Load(ctx context.Context) (map[string]string, error) {
 	return db.LoadList(ctx, p.conn)
 }
 
-func (p *ConnLoader) GetShortList(ctx context.Context, fullList []model.FullItem) (map[string]string, error) {
+func (p *ConnLoader) GetShortList(ctx context.Context, fullList []model.FullItem, user string) (map[string]string, error) {
 
 	if err := p.Ping(ctx); err != nil {
 		logger.Log().Error("error", zap.Error(err))
@@ -85,7 +94,7 @@ func (p *ConnLoader) GetShortList(ctx context.Context, fullList []model.FullItem
 
 	for _, full := range fullList {
 
-		short, err := db.GetShort(ctx, tx, full.Full)
+		short, err := db.GetShort(ctx, tx, full.Full, user)
 		if err != nil {
 			logger.Log().Error("error", zap.Error(err))
 			tx.Rollback()
@@ -96,7 +105,7 @@ func (p *ConnLoader) GetShortList(ctx context.Context, fullList []model.FullItem
 	return shortList, tx.Commit()
 }
 
-func (p *ConnLoader) GetShort(ctx context.Context, full string) (string, error) {
+func (p *ConnLoader) GetShort(ctx context.Context, full string, user string) (string, error) {
 
 	if err := p.Ping(ctx); err != nil {
 		logger.Log().Error("error", zap.Error(err))
@@ -110,7 +119,7 @@ func (p *ConnLoader) GetShort(ctx context.Context, full string) (string, error) 
 	}
 	//defer tx.Rollback()
 
-	short, err := db.GetShort(ctx, tx, full)
+	short, err := db.GetShort(ctx, tx, full, user)
 	if err != nil {
 		logger.Log().Error("error", zap.Error(err))
 		tx.Rollback()
@@ -128,4 +137,50 @@ func (p *ConnLoader) GetFull(ctx context.Context, short string) (string, error) 
 	}
 
 	return db.GetFull(ctx, p.conn, short)
+}
+
+func (p *ConnLoader) GetUserList(ctx context.Context, user string) ([]model.StoreItem, error) {
+	if err := p.Ping(ctx); err != nil {
+		logger.Log().Error("error", zap.Error(err))
+		return nil, err
+	}
+
+	return db.GetUser(ctx, p.conn, user)
+}
+
+func (p *ConnLoader) deleteList(ctx context.Context, short chan string, user string) error {
+	if err := p.Ping(ctx); err != nil {
+		logger.Log().Error("error", zap.Error(err))
+		return err
+	}
+
+	shortList := make([]string, 0)
+	for v := range short {
+		shortList = append(shortList, v)
+	}
+	return db.Delete(ctx, p.conn, shortList, user)
+}
+
+func (p *ConnLoader) DeleteList(ctx context.Context, short []string, user string) error {
+
+	chShort := make(chan string, len(short))
+	defer close(chShort)
+
+	go p.deleteList(ctx, chShort, user)
+
+	var wg sync.WaitGroup
+	for _, v := range short {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			select {
+			case chShort <- v:
+				return
+			case <-ctx.Done():
+				return
+			}
+		}()
+	}
+	wg.Wait()
+	return nil
 }

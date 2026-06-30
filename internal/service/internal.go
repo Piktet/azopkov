@@ -54,3 +54,17 @@ func (p *Server) getFull(short string) (string, error) {
 	return "", fmt.Errorf("full not found in mem for %s", short)
 
 }
+
+func (p *Server) deleteShort(short string) {
+
+	p.Lock()
+	defer p.Unlock()
+
+	delete(p.shortList, short)
+	for k, v := range p.fullList {
+		if v == short {
+			delete(p.fullList, k)
+			return
+		}
+	}
+}

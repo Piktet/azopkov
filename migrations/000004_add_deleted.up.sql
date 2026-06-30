@@ -1,0 +1,1 @@
+ALTER TABLE IF EXISTS t_data ADD COLUMN IF NOT EXISTS b_deleted boolean;

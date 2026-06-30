@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Piktet/azopkov.git/internal/config"
@@ -15,7 +16,7 @@ func (p *memLoader) Load(ctx context.Context) (map[string]string, error) {
 	return map[string]string{}, nil
 }
 
-func (p *memLoader) GetShortList(ctx context.Context, fullList []model.FullItem) (map[string]string, error) {
+func (p *memLoader) GetShortList(ctx context.Context, fullList []model.FullItem, user string) (map[string]string, error) {
 	resp := make(map[string]string)
 	for _, v := range fullList {
 		short, err := utils.CreateShort(config.ShortLen)
@@ -27,7 +28,7 @@ func (p *memLoader) GetShortList(ctx context.Context, fullList []model.FullItem)
 	return resp, nil
 }
 
-func (p *memLoader) GetShort(ctx context.Context, full string) (string, error) {
+func (p *memLoader) GetShort(ctx context.Context, full string, user string) (string, error) {
 	short, err := utils.CreateShort(config.ShortLen)
 	if err != nil {
 		return "", err
@@ -37,4 +38,12 @@ func (p *memLoader) GetShort(ctx context.Context, full string) (string, error) {
 
 func (p *memLoader) GetFull(ctx context.Context, short string) (string, error) {
 	return "", fmt.Errorf("full not found for short %s", short)
+}
+
+func (p *memLoader) GetUserList(ctx context.Context, user string) ([]model.StoreItem, error) {
+	return nil, errors.New("unsupported")
+}
+
+func (p *memLoader) DeleteList(context.Context, []string, string) error {
+	return errors.New("unsupport")
 }

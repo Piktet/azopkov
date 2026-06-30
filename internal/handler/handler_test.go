@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -144,7 +145,8 @@ func TestStorageServer_HandlerGetFull(t *testing.T) {
 
 	haveMethod := http.MethodGet
 	full := "http://yandex.ru"
-	short, err := server.GetShort(context.TODO(), full)
+	user := uuid.New().String()
+	short, err := server.GetShort(context.TODO(), full, user)
 	if err != nil {
 		t.Error(err)
 		return

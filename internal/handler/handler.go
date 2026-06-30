@@ -103,7 +103,7 @@ func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) 
 
 	contentType := r.Header.Get(model.HeaderContentType)
 	if contentType != model.ContentTypeText {
-		logger.Log().Error("error content type")
+		logger.Log().Error("error context type")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -124,8 +124,13 @@ func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	short, shorterr := p.GetShort(context.TODO(), full)
+	short, shorterr := p.GetShort(context.TODO(), full, getUser(r))
 	if shorterr != nil && !errors.Is(shorterr, utils.ErrConflict) {
+		if errors.Is(shorterr, model.ErrorDeleted) {
+			logger.Log().Error("error getting short", zap.Error(err))
+			w.WriteHeader(http.StatusGone)
+			return
+		}
 		logger.Log().Error("error getting short", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -170,6 +175,11 @@ func (p *StorageServer) HandlerGetFull(w http.ResponseWriter, r *http.Request) {
 
 	full, err := p.GetFull(context.TODO(), id)
 	if err != nil {
+		if errors.Is(err, model.ErrorDeleted) {
+			logger.Log().Error("error getting full (is deleted)", zap.Error(err))
+			w.WriteHeader(http.StatusGone)
+			return
+		}
 		logger.Log().Error("error getting full", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -194,7 +204,7 @@ func (p *StorageServer) HandlerPostFullJSON(w http.ResponseWriter, r *http.Reque
 
 	contentType := r.Header.Get(model.HeaderContentType)
 	if contentType != model.ContentTypeJSON {
-		logger.Log().Error("error contect type")
+		logger.Log().Error("error context type")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -215,7 +225,7 @@ func (p *StorageServer) HandlerPostFullJSON(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	short, shorterr := p.GetShort(context.TODO(), full)
+	short, shorterr := p.GetShort(context.TODO(), full, getUser(r))
 	if shorterr != nil && !errors.Is(shorterr, utils.ErrConflict) {
 		logger.Log().Error("error getting short", zap.Error(shorterr))
 		w.WriteHeader(http.StatusBadRequest)
@@ -274,7 +284,7 @@ func (p *StorageServer) HandlerPostBatch(w http.ResponseWriter, r *http.Request)
 
 	contentType := r.Header.Get(model.HeaderContentType)
 	if contentType != model.ContentTypeJSON {
-		logger.Log().Error("error contect type")
+		logger.Log().Error("error context type")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -289,7 +299,7 @@ func (p *StorageServer) HandlerPostBatch(w http.ResponseWriter, r *http.Request)
 	}
 
 	logger.Log().Info("request", zap.Int("count", len(request)))
-	response, err := p.GetShortList(context.TODO(), request)
+	response, err := p.GetShortList(context.TODO(), request, getUser(r))
 	if err != nil {
 		logger.Log().Error("error getting short", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
@@ -298,15 +308,11 @@ func (p *StorageServer) HandlerPostBatch(w http.ResponseWriter, r *http.Request)
 
 	logger.Log().Info("response", zap.Int("count", len(response)))
 
-	formatResponse := make([]model.ShortItem, 0, len(response))
-	for _, v := range response {
-		//v.Short = p.format(v.Short)
-
-		formatResponse = append(formatResponse, model.ShortItem{Corr: v.Corr, Short: p.format(v.Short)})
-		logger.Log().Info("item", zap.String("short", v.Short))
+	for k, v := range response {
+		response[k].Short = p.format(v.Short)
 	}
 
-	jsonResponse, err := json.Marshal(formatResponse)
+	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		logger.Log().Error("Error marshal JSON response = ", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
