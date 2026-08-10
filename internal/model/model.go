@@ -72,3 +72,15 @@ type StoreItem struct {
 	Short string `json:"short_url"`
 	Full  string `json:"original_url"`
 }
+
+type AuditData struct {
+	Created int64  `json:"ts"`
+	Action  string `json:"action"`
+	User    string `json:"user_id"`
+	Address string `json:"url"`
+}
+
+const (
+	ActionShorten = "shorten"
+	ActionFollow  = "follow"
+)

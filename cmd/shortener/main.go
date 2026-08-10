@@ -21,14 +21,15 @@ import (
 // addr — адрес
 // Формат: "хост:порт" — localhost:8080.
 //const addr = "localhost:8080"
+const stopTimeout = 5 * time.Second
 
 func main() {
-	ctx, fnCancel := context.WithCancelCause(context.Background())
-	defer fnCancel(errors.New("exit"))
-	run(ctx)
+	if err := new(context.WithCancelCause(context.Background())); err != nil {
+		log.Fatalf("exist with error: %v", err)
+	}
 }
 
-func run(ctx context.Context) {
+func new(ctx context.Context, fnCancel context.CancelCauseFunc) error {
 	// Создаём новый экземпляр HTTP-сервера
 	//srv := handler.New(addr)
 	cfg := config.New()
@@ -76,6 +77,18 @@ func run(ctx context.Context) {
 
 	connServer := handler.NewConn(conn)
 
+	auditEvent := audit.NewAuditEvent()
+
+	if config.GetAuditFile() != "" {
+		auditEvent.Register(audit.NewFileObserver(config.GetAuditFile()))
+	}
+
+	if config.GetAuditAddress() != "" {
+		auditEvent.Register(audit.NewFileObserver(config.GetAuditFile()))
+	}
+
+	server.SetAudit(auditEvent)
+
 	router := chi.NewRouter()
 
 	router.Use(logger.WithLogging)
@@ -90,15 +103,47 @@ func run(ctx context.Context) {
 	router.Get("/api/user/urls", srv.HandlerGetUser)
 	router.Delete("/api/user/urls", srv.HandlerDelete)
 
+	if err := run(ctx, &http.Server{
+		Addr:         config.GetServerAddress(),
+		Handler:      router,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}); err != nil {
+		fnCancel(err)
+		return err
+	}
+	fnCancel(nil)
+
+	return nil
+}
+
+func run(ctx context.Context, srv *http.Server) error {
+
 	go func() {
-		if err := http.ListenAndServe(cfg.GetServerAddress(), router); err != nil {
-			panic(err)
+		sigint := make(chan os.Signal, 1)
+		signal.Notify(sigint, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+		select {
+		case s := <-sigint:
+			logger.Log().Info("stop with signal", zap.String("signal", s.String()))
+		case <-ctx.Done():
+			logger.Log().Info("stop with context", zap.Error(context.Cause(ctx)))
+		}
+
+		stopCtx, cancel := context.WithTimeoutCause(context.Background(), stopTimeout, fmt.Errorf("server Shutdown with timeout %v", stopTimeout))
+		defer cancel()
+		if err := srv.Shutdown(stopCtx); err != nil {
+			logger.Log().Info("HTTP server shutdown", zap.Error(err))
 		}
 	}()
 	// Запускаем HTTP-сервер
 	//panic при ошибке
-	logger.Log().Info("listen port", zap.String("serverAddress", cfg.GetServerAddress()))
+	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+		logger.Log().Info("HTTP server ListenAndServe", zap.Error(err))
+		return err
+	}
 
-	<-ctx.Done()
 	logger.Log().Info("exit")
+	return nil
 }

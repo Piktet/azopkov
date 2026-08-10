@@ -40,6 +40,17 @@ const (
 	flagConnAddress    = "d"
 	envConnAddress     = "DATABASE_DSN"
 	descConnAddress    = "строка с адресом подключения к БД"
+
+	
+	defaultAuditFile = ""
+	flagAuditFile    = "audit-file"
+	envAuditFile     = "AUDIT_FILE"
+	descAuditFile    = "путь к файлу-приёмнику, в который сохраняются логи аудита"
+
+	defaultAuditAddress = ""
+	flagAuditAddress    = "audit-url"
+	envAuditAddress     = "AUDIT_URL"
+	descAuditAddress    = "полный URL удаленного сервера-приёмника, куда отправляются логи аудита"
 )
 
 var DefaultConfig = &Config{
@@ -56,6 +67,8 @@ type Config struct {
 	logLevel      string
 	fileName      string
 	connAddress   string
+	auditFile     string
+	auditAddress  string
 }
 
 func New() *Config {
@@ -65,6 +78,8 @@ func New() *Config {
 	logLevel := setAddress(envLogLevel, flagLogLevel, defaultLogLevel, descLogLevel)
 	fileName := setAddress(envFileName, flagFileName, defaultFileName, descFileName)
 	connAddress := setAddress(envConnAddress, flagConnAddress, defaultConnAddress, descConnAddress)
+	auditFile := setAddress(envAuditFile, flagAuditFile, defaultAuditFile, descAuditFile)
+	auditAddress := setAddress(envAuditAddress, flagAuditAddress, defaultAuditAddress, descAuditAddress)
 
 	flag.Parse()
 
@@ -74,6 +89,8 @@ func New() *Config {
 		logLevel:      *logLevel,
 		fileName:      *fileName,
 		connAddress:   *connAddress,
+		auditFile:     *auditFile,
+		auditAddress:  validateBaseAddress(*auditAddress, defaultAuditAddress),
 	}
 }
 
@@ -128,4 +145,12 @@ func (c *Config) GetFileName() string {
 
 func (c *Config) GetConnAddress() string {
 	return c.connAddress
+}
+
+func (c *Config) GetAuditFile() string {
+	return c.auditFile
+}
+
+func (c *Config) GetAuditAddress() string {
+	return c.auditAddress
 }

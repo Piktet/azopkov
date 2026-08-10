@@ -43,7 +43,8 @@ func NewConn(x model.ConnLoader) *ConnServer {
 // HTTP-сервер для сокращения URL.
 type StorageServer struct {
 	model.Storage          // соответствие short <-> full
-	u             *url.URL // URL (например, http://localhost:8080)
+	u     *url.URL 		   // URL (например, http://localhost:8080)
+	audit model.Audit
 }
 
 // New новый экземпляр сервера в формате "host:port".
@@ -62,6 +63,10 @@ func (p *StorageServer) SetLoader(loader model.Storage) {
 	p.Storage = loader
 }
 
+func (p *StorageServer) SetAudit(audit model.Audit) {
+	p.audit = audit
+}
+
 // format преобразует путь (например, "/EwHXdJfB") в полный URL.
 // Используется для возврата клиенту сокращённого URL в виде строки.
 //
@@ -69,6 +74,19 @@ func (p *StorageServer) SetLoader(loader model.Storage) {
 func (p *StorageServer) format(path string) string {
 	p.u.Path = path     // Устанавливаем путь
 	return p.u.String() // Возвращаем строковое представление URL
+}
+
+func (p *StorageServer) sendAudit(ctx context.Context, action, user, address string) {
+	if p.audit == nil {
+		return
+	}
+
+	p.audit.Send(ctx, &model.AuditData{
+		Created: time.Now().Unix(),
+		Action:  action,
+		User:    user,
+		Address: address,
+	})
 }
 
 // HandlerPostFull — обработчик POST-запросов на пути "/".
@@ -124,7 +142,8 @@ func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	short, shorterr := p.GetShort(context.TODO(), full, getUser(r))
+	user := getUser(r)
+	short, shorterr := p.GetShort(r.Context(), full, user)
 	if shorterr != nil && !errors.Is(shorterr, utils.ErrConflict) {
 		if errors.Is(shorterr, model.ErrorDeleted) {
 			logger.Log().Error("error getting short", zap.Error(err))
@@ -143,6 +162,8 @@ func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) 
 		w.WriteHeader(http.StatusCreated)
 	}
 	w.Write([]byte(p.format(short)))
+
+	p.sendAudit(r.Context(), model.ActionShorten, user, full)
 }
 
 // HandlerGetFull — обработчик GET-запросов на пути "/{id}".
@@ -173,7 +194,8 @@ func (p *StorageServer) HandlerGetFull(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	full, err := p.GetFull(context.TODO(), id)
+	user := getUser(r)
+	full, err := p.GetFull(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, model.ErrorDeleted) {
 			logger.Log().Error("error getting full (is deleted)", zap.Error(err))
@@ -187,6 +209,8 @@ func (p *StorageServer) HandlerGetFull(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set(model.HeaderLocation, full)
 	w.WriteHeader(http.StatusTemporaryRedirect)
+
+	p.sendAudit(r.Context(), model.ActionFollow, user, full)
 }
 
 // Эндпоинт с методом POST и путём /.
@@ -225,7 +249,8 @@ func (p *StorageServer) HandlerPostFullJSON(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	short, shorterr := p.GetShort(context.TODO(), full, getUser(r))
+	user := getUser(r)
+	short, shorterr := p.GetShort(r.Context(), full, user)
 	if shorterr != nil && !errors.Is(shorterr, utils.ErrConflict) {
 		logger.Log().Error("error getting short", zap.Error(shorterr))
 		w.WriteHeader(http.StatusBadRequest)
@@ -251,6 +276,7 @@ func (p *StorageServer) HandlerPostFullJSON(w http.ResponseWriter, r *http.Reque
 		w.WriteHeader(http.StatusCreated)
 	}
 	w.Write(enc)
+	p.sendAudit(r.Context(), model.ActionShorten, user, full)
 }
 
 func (p *ConnServer) HandlerGetPing(w http.ResponseWriter, r *http.Request) {
@@ -262,7 +288,7 @@ func (p *ConnServer) HandlerGetPing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := p.Ping(context.TODO()); err != nil {
+	if err := p.Ping(r.Context()); err != nil {
 		logger.Log().Error("error ping", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -299,7 +325,7 @@ func (p *StorageServer) HandlerPostBatch(w http.ResponseWriter, r *http.Request)
 	}
 
 	logger.Log().Info("request", zap.Int("count", len(request)))
-	response, err := p.GetShortList(context.TODO(), request, getUser(r))
+	response, err := p.GetShortList(r.Context(), request, getUser(r))
 	if err != nil {
 		logger.Log().Error("error getting short", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)

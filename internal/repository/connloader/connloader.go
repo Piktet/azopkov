@@ -43,8 +43,8 @@ func (p *ConnLoader) Create(ctx context.Context) error {
 		return err
 	}
 
-	db.SetMaxOpenConns(2) // Установить максимальное количество открытых соединений к базе данных
-	db.SetMaxIdleConns(2) // Установить максимальное количество неактивных соединений в пуле
+	db.SetMaxOpenConns(100) // Установить максимальное количество открытых соединений к базе данных
+	db.SetMaxIdleConns(100) // Установить максимальное количество неактивных соединений в пуле
 
 	p.conn = db
 	return nil

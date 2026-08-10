@@ -38,7 +38,7 @@ func (p *StorageServer) HandlerDelete(w http.ResponseWriter, r *http.Request) {
 
 	logger.Log().Info("request", zap.Int("count", len(request)))
 	go func() {
-		if err := p.DeleteList(context.TODO(), request, getUser(r)); err != nil {
+		if err := p.DeleteList(context.Background(), request, getUser(r)); err != nil {
 			logger.Log().Error("error getting short", zap.Error(err))
 			// w.WriteHeader(http.StatusBadRequest)
 			return
