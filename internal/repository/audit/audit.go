@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/Piktet/azopkov/internal/model"
+	"github.com/Piktet/azopkov.git/internal/model"
 	"golang.org/x/sync/errgroup"
 )
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Piktet/azopkov/internal/model"
+	"github.com/Piktet/azopkov.git/internal/model"
 	"github.com/stretchr/testify/assert"
 )
 
