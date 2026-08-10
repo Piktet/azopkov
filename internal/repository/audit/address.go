@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"net/http"
-	
+
 	"github.com/Piktet/azopkov.git/internal/logger"
 	"github.com/Piktet/azopkov.git/internal/model"
 	"go.uber.org/zap"
