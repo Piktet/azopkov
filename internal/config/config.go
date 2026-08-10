@@ -41,7 +41,6 @@ const (
 	envConnAddress     = "DATABASE_DSN"
 	descConnAddress    = "строка с адресом подключения к БД"
 
-	
 	defaultAuditFile = ""
 	flagAuditFile    = "audit-file"
 	envAuditFile     = "AUDIT_FILE"

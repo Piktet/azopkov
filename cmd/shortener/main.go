@@ -2,8 +2,13 @@ package main
 
 import (
 	"context"
-	"errors"
+	"fmt"
+	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -13,6 +18,7 @@ import (
 	"github.com/Piktet/azopkov.git/internal/handler"
 	"github.com/Piktet/azopkov.git/internal/logger"
 	"github.com/Piktet/azopkov.git/internal/model"
+	"github.com/Piktet/azopkov.git/internal/repository/audit"
 	"github.com/Piktet/azopkov.git/internal/repository/connloader"
 	"github.com/Piktet/azopkov.git/internal/repository/fileloader"
 	"github.com/go-chi/chi/v5"
@@ -20,7 +26,7 @@ import (
 
 // addr — адрес
 // Формат: "хост:порт" — localhost:8080.
-//const addr = "localhost:8080"
+// const addr = "localhost:8080"
 const stopTimeout = 5 * time.Second
 
 func main() {
@@ -79,15 +85,15 @@ func new(ctx context.Context, fnCancel context.CancelCauseFunc) error {
 
 	auditEvent := audit.NewAuditEvent()
 
-	if config.GetAuditFile() != "" {
-		auditEvent.Register(audit.NewFileObserver(config.GetAuditFile()))
+	if cfg.GetAuditFile() != "" {
+		auditEvent.Register(audit.NewFileObserver(cfg.GetAuditFile()))
 	}
 
-	if config.GetAuditAddress() != "" {
-		auditEvent.Register(audit.NewFileObserver(config.GetAuditFile()))
+	if cfg.GetAuditAddress() != "" {
+		auditEvent.Register(audit.NewFileObserver(cfg.GetAuditFile()))
 	}
 
-	server.SetAudit(auditEvent)
+	srv.SetAudit(auditEvent)
 
 	router := chi.NewRouter()
 
@@ -104,7 +110,7 @@ func new(ctx context.Context, fnCancel context.CancelCauseFunc) error {
 	router.Delete("/api/user/urls", srv.HandlerDelete)
 
 	if err := run(ctx, &http.Server{
-		Addr:         config.GetServerAddress(),
+		Addr:         cfg.GetServerAddress(),
 		Handler:      router,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,

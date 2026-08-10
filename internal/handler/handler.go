@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/Piktet/azopkov.git/internal/logger"
 	"github.com/Piktet/azopkov.git/internal/model"
@@ -43,8 +44,8 @@ func NewConn(x model.ConnLoader) *ConnServer {
 // HTTP-сервер для сокращения URL.
 type StorageServer struct {
 	model.Storage          // соответствие short <-> full
-	u     *url.URL 		   // URL (например, http://localhost:8080)
-	audit model.Audit
+	u             *url.URL // URL (например, http://localhost:8080)
+	audit         model.Audit
 }
 
 // New новый экземпляр сервера в формате "host:port".

@@ -84,3 +84,7 @@ const (
 	ActionShorten = "shorten"
 	ActionFollow  = "follow"
 )
+
+type Audit interface {
+	Send(context.Context, *AuditData) error
+}
