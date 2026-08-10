@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -21,6 +22,7 @@ import (
 	"github.com/Piktet/azopkov.git/internal/repository/audit"
 	"github.com/Piktet/azopkov.git/internal/repository/connloader"
 	"github.com/Piktet/azopkov.git/internal/repository/fileloader"
+	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -101,6 +103,7 @@ func new(ctx context.Context, fnCancel context.CancelCauseFunc) error {
 	router.Use(compress.WithCompress)
 	router.Use(auth.WithAuth)
 
+	router.Mount("/debug", middleware.Profiler())
 	router.Post("/", srv.HandlerPostFull)
 	router.Post("/api/shorten", srv.HandlerPostFullJSON)
 	router.Post("/api/shorten/batch", srv.HandlerPostBatch)

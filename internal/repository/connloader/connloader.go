@@ -3,7 +3,6 @@ package connloader
 import (
 	"context"
 	"database/sql"
-	"sync"
 
 	"github.com/Piktet/azopkov.git/internal/logger"
 	"github.com/Piktet/azopkov.git/internal/model"
@@ -148,39 +147,39 @@ func (p *ConnLoader) GetUserList(ctx context.Context, user string) ([]model.Stor
 	return db.GetUser(ctx, p.conn, user)
 }
 
-func (p *ConnLoader) deleteList(ctx context.Context, short chan string, user string) error {
+func (p *ConnLoader) deleteList(ctx context.Context, short []string, user string) error {
 	if err := p.Ping(ctx); err != nil {
 		logger.Log().Error("error", zap.Error(err))
 		return err
 	}
 
-	shortList := make([]string, 0)
-	for v := range short {
-		shortList = append(shortList, v)
-	}
-	return db.Delete(ctx, p.conn, shortList, user)
+	return db.Delete(ctx, p.conn, short, user)
 }
 
 func (p *ConnLoader) DeleteList(ctx context.Context, short []string, user string) error {
 
-	chShort := make(chan string, len(short))
-	defer close(chShort)
+	return p.deleteList(ctx, short, user)
 
-	go p.deleteList(ctx, chShort, user)
+	/*
+		chShort := make(chan string, len(short))
+		defer close(chShort)
 
-	var wg sync.WaitGroup
-	for _, v := range short {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			select {
-			case chShort <- v:
-				return
-			case <-ctx.Done():
-				return
-			}
-		}()
-	}
-	wg.Wait()
-	return nil
+		go p.deleteList(ctx, chShort, user)
+
+		var wg sync.WaitGroup
+		for _, v := range short {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				select {
+				case chShort <- v:
+					return
+				case <-ctx.Done():
+					return
+				}
+			}()
+		}
+		wg.Wait()
+		return nil
+	*/
 }

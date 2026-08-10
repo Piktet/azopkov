@@ -14,6 +14,53 @@ import (
 
 const defaultFileName = "../../../storage.json"
 
+func Benchmark_GetFull(b *testing.B) {
+	val, _ := utils.CreateShort(6)
+	full := "http://yandex.ru/" + val
+	server := New()
+	user := uuid.New().String()
+
+	loader := connloader.New("postgres://user:user@localhost:5433/practicum?sslmode=disable")
+	server.Load(context.TODO(), loader)
+
+	short, err := server.GetShort(context.TODO(), full, user)
+	if err != nil {
+		b.Error(err)
+		return
+	}
+	for i := 0; i < b.N; i++ {
+		_, _ = server.GetFull(context.TODO(), short)
+	}
+}
+
+func Benchmark_GetShort(b *testing.B) {
+	val, _ := utils.CreateShort(6)
+	full := "http://yandex.ru/" + val
+	server := New()
+	user := uuid.New().String()
+
+	loader := connloader.New("postgres://user:user@localhost:5433/practicum?sslmode=disable")
+	server.Load(context.TODO(), loader)
+
+	_, err := server.GetShort(context.TODO(), full, user)
+	if err != nil {
+		b.Error(err)
+		return
+	}
+	for i := 0; i < b.N; i++ {
+		_, _ = server.GetShort(context.TODO(), full, user)
+	}
+}
+
+func Benchmark_GetShortList(b *testing.B) {
+	fullList := []model.FullItem{{Corr: "aaa", Full: "full"}}
+	user := uuid.New().String()
+	for i := 0; i < b.N; i++ {
+		p := New()
+		_, _ = p.GetShortList(context.Background(), fullList, user)
+	}
+}
+
 func TestServer_GetFull(t *testing.T) {
 
 	val, _ := utils.CreateShort(6)
