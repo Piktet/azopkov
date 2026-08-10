@@ -15,7 +15,17 @@ func getUser(r *http.Request) string {
 	return auth.GetUser(token)
 }
 
-// Эндпоинт /api/shorten/batch, принимающий в теле запроса множество URL для сокращения в формате json
+// HandlerGetUser — обработчик GET-запроса на пути "/api/user/urls".
+//
+// Возвращает список всех сокращённых URL текущего пользователя.
+//
+// Принимает:
+//   - Метод: GET
+//
+// Возвращает:
+//   - Код 200 OK — список URL в формате JSON
+//   - Код 204 No Content — список пуст
+//   - Код 400 Bad Request — неверный метод
 func (p *StorageServer) HandlerGetUser(w http.ResponseWriter, r *http.Request) {
 
 	logger.Log().Info("HandlerGetUser")

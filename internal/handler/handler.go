@@ -25,32 +25,39 @@ const (
 	contextTypeJSON   = "application/json"
 )
 
+// Request представляет тело входного запроса на сокращение URL.
 type Request struct {
 	Full string `json:"url"`
 }
 
+// Response представляет тело выходного ответа с сокращённым URL.
 type Response struct {
 	Short string `json:"result"`
 }
 
+// ConnServer — HTTP-сервер для работы с подключением к базе данных (ping и т.д.).
 type ConnServer struct {
 	model.ConnLoader
 }
 
+// NewConn создаёт новый экземпляр ConnServer с заданным подключением к БД.
 func NewConn(x model.ConnLoader) *ConnServer {
 	return &ConnServer{ConnLoader: x}
 }
 
-// HTTP-сервер для сокращения URL.
+// StorageServer — HTTP-сервер для сокращения URL.
+//   - Storage — соответствие short <-> full URL.
+//   - u — базовый URL (например, http://localhost:8080).
+//   - audit — интерфейс для отправки логов аудита.
 type StorageServer struct {
-	model.Storage          // соответствие short <-> full
-	u             *url.URL // URL (например, http://localhost:8080)
-	audit         model.Audit
+	model.Storage
+	u   *url.URL
+	audit model.Audit
 }
 
-// New новый экземпляр сервера в формате "host:port".
+// New создаёт новый экземпляр StorageServer с заданным базовым адресом.
 // По умолчанию "localhost".
-// При ошибке - panic-а
+// При ошибке парсинга адреса — panic.
 func New(address string) *StorageServer {
 	u, err := url.Parse(address)
 	if err != nil {
@@ -60,21 +67,19 @@ func New(address string) *StorageServer {
 	return &(StorageServer{Storage: service.New(), u: u})
 }
 
+// SetLoader устанавливает реализацию Storage для сервера.
 func (p *StorageServer) SetLoader(loader model.Storage) {
 	p.Storage = loader
 }
 
+// SetAudit устанавливает интерфейс аудита для сервера.
 func (p *StorageServer) SetAudit(audit model.Audit) {
 	p.audit = audit
 }
 
-// format преобразует путь (например, "/EwHXdJfB") в полный URL.
-// Используется для возврата клиенту сокращённого URL в виде строки.
-//
-// format("/xEwHXdJfByz") → "http://localhost:8080/EwHXdJfB"
 func (p *StorageServer) format(path string) string {
-	p.u.Path = path     // Устанавливаем путь
-	return p.u.String() // Возвращаем строковое представление URL
+	p.u.Path = path
+	return p.u.String()
 }
 
 func (p *StorageServer) sendAudit(ctx context.Context, action, user, address string) {
@@ -105,14 +110,6 @@ func (p *StorageServer) sendAudit(ctx context.Context, action, user, address str
 // Ошибки:
 //   - 400 Bad Request
 func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) {
-	// Проверка HTTP-метода
-	// if r.Method != http.MethodPost {
-	// 	w.WriteHeader(http.StatusBadRequest)
-	// 	return
-	// }
-
-	// Проверка типа содержимого
-
 	logger.Log().Info("HandlerPostFull")
 	if r.Method != http.MethodPost {
 		logger.Log().Error("error method")
@@ -127,7 +124,6 @@ func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Читаем тело запроса
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		logger.Log().Error("error getting request", zap.Error(err))
@@ -171,7 +167,7 @@ func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) 
 //
 // Принимает:
 //   - Метод: GET
-//   - Путь: /{id} (id- EwHXdJfB)
+//   - Путь: /{id} (id - EwHXdJfB)
 //
 // Возвращает:
 //   - Код 307 Temporary Redirect
@@ -214,9 +210,16 @@ func (p *StorageServer) HandlerGetFull(w http.ResponseWriter, r *http.Request) {
 	p.sendAudit(r.Context(), model.ActionFollow, user, full)
 }
 
-// Эндпоинт с методом POST и путём /.
-// Сервер принимает в теле запроса JSON URL как application/json
-// и возвращает ответ с кодом 201 и сокращённым JSON URL как application/json.
+// HandlerPostFullJSON — обработчик POST-запросов на пути "/api/shorten" в формате JSON.
+//
+// Принимает:
+//   - Метод: POST
+//   - Content-Type: application/json
+//   - Тело: {"url": "http://..."}
+//
+// Возвращает:
+//   - Код 201 Created / 409 Conflict
+//   - Тело: {"result": "http://..."}
 func (p *StorageServer) HandlerPostFullJSON(w http.ResponseWriter, r *http.Request) {
 
 	logger.Log().Info("HandlerPostFullJSON")
@@ -234,7 +237,6 @@ func (p *StorageServer) HandlerPostFullJSON(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Читаем тело запроса
 	var request model.Request
 	dec := json.NewDecoder(r.Body)
 	if err := dec.Decode(&request); err != nil {
@@ -280,6 +282,7 @@ func (p *StorageServer) HandlerPostFullJSON(w http.ResponseWriter, r *http.Reque
 	p.sendAudit(r.Context(), model.ActionShorten, user, full)
 }
 
+// HandlerGetPing — обработчик GET-запроса на пути "/ping" для проверки подключения к БД.
 func (p *ConnServer) HandlerGetPing(w http.ResponseWriter, r *http.Request) {
 
 	logger.Log().Info("HandlerGetPing")
@@ -299,7 +302,16 @@ func (p *ConnServer) HandlerGetPing(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// Эндпоинт /api/shorten/batch, принимающий в теле запроса множество URL для сокращения в формате json
+// HandlerPostBatch — обработчик POST-запроса на пути "/api/shorten/batch" для пакетного сокращения URL.
+//
+// Принимает:
+//   - Метод: POST
+//   - Content-Type: application/json
+//   - Тело: [{"correlation_id": "...", "original_url": "..."}, ...]
+//
+// Возвращает:
+//   - Код 201 Created
+//   - Тело: [{"correlation_id": "...", "short_url": "..."}, ...]
 func (p *StorageServer) HandlerPostBatch(w http.ResponseWriter, r *http.Request) {
 
 	logger.Log().Info("HandlerPostBatch")
@@ -316,7 +328,6 @@ func (p *StorageServer) HandlerPostBatch(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Читаем тело запроса
 	var request []model.FullItem
 	dec := json.NewDecoder(r.Body)
 	if err := dec.Decode(&request); err != nil {
