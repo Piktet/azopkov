@@ -51,7 +51,7 @@ func NewConn(x model.ConnLoader) *ConnServer {
 //   - audit — интерфейс для отправки логов аудита.
 type StorageServer struct {
 	model.Storage
-	u   *url.URL
+	u     *url.URL
 	audit model.Audit
 }
 
