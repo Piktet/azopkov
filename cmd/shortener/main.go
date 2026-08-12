@@ -92,7 +92,7 @@ func new(ctx context.Context, fnCancel context.CancelCauseFunc) error {
 	}
 
 	if cfg.GetAuditAddress() != "" {
-		auditEvent.Register(audit.NewFileObserver(cfg.GetAuditFile()))
+		auditEvent.Register(audit.NewAddressObserver(cfg.GetAuditFile()))
 	}
 
 	srv.SetAudit(auditEvent)
