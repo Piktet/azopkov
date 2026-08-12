@@ -24,7 +24,7 @@ func (p *FileObserver) Send(ctx context.Context, data []byte) error {
 
 	f, err := os.OpenFile(p.name, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	defer f.Close()
