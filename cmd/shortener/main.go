@@ -32,12 +32,12 @@ import (
 const stopTimeout = 5 * time.Second
 
 func main() {
-	if err := new(context.WithCancelCause(context.Background())); err != nil {
+	if err := run(context.WithCancelCause(context.Background())); err != nil {
 		log.Fatalf("exist with error: %v", err)
 	}
 }
 
-func new(ctx context.Context, fnCancel context.CancelCauseFunc) error {
+func run(ctx context.Context, fnCancel context.CancelCauseFunc) error {
 	// Создаём новый экземпляр HTTP-сервера
 	//srv := handler.New(addr)
 	cfg := config.New()
