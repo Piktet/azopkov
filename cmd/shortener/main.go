@@ -163,7 +163,6 @@ func run(ctx context.Context, srv *http.Server) error {
 		logger.Log().Info("HTTP server ListenAndServe", zap.Error(err))
 		return err
 	}
-
 	logger.Log().Info("exit")
 	return nil
 }
