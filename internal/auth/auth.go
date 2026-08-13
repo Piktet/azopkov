@@ -15,11 +15,15 @@ const (
 	secret = "qwerty"
 )
 
+// Claims — JWT-токен с данными пользователя.
 type Claims struct {
 	jwt.RegisteredClaims
 	User string
 }
 
+// WithAuth — HTTP-мидлварь для обработки аутентификации по JWT-куку.
+// Если кука отсутствует, создаёт новый токен и записывает его в ответ.
+// Если кука есть, проверяет токен и записывает имя пользователя во вторую куку.
 func WithAuth(h http.Handler) http.Handler {
 	authFn := func(w http.ResponseWriter, r *http.Request) {
 
@@ -85,6 +89,8 @@ func newCookie(w http.ResponseWriter, r *http.Request) {
 	r.Header.Set(model.HeaderAuth, auth)
 }
 
+// GetUser извлекает имя пользователя из JWT-токена.
+// Возвращает пустую строку, если токен невалиден.
 func GetUser(auth string) string {
 	claims := &Claims{}
 	if token, err := jwt.ParseWithClaims(auth, claims, func(token *jwt.Token) (any, error) {
