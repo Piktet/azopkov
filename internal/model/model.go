@@ -1,3 +1,4 @@
+// Package model константы и структуры
 package model
 
 import (

@@ -1,3 +1,4 @@
+// Package fileloader загрузчик из файла.
 package fileloader
 
 import (
@@ -71,7 +72,7 @@ func (p *FileLoader) GetShortList(ctx context.Context, fullList []model.FullItem
 	}
 	defer file.Close()
 
-	if err := p.preSave(file); err != nil {
+	if err = p.preSave(file); err != nil {
 		return nil, err
 	}
 	defer p.postSave(file)
@@ -186,10 +187,10 @@ func (p *FileLoader) writeItem(buffer *bufio.Writer, full string, user string) (
 
 	size := 0
 	if p.fileSize > 2 {
-		n, err := buffer.Write([]byte(",\n"))
-		if err != nil {
+		n, writeErr := buffer.Write([]byte(",\n"))
+		if writeErr != nil {
 			logger.Log().Error("error", zap.Error(err))
-			return "", 0, err
+			return "", 0, writeErr
 		}
 		size += n
 	}

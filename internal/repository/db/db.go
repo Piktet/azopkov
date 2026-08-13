@@ -1,3 +1,4 @@
+// Package db взаимодействие с БД
 package db
 
 import (
@@ -50,7 +51,7 @@ func LoadList(ctx context.Context, conn Connector) (map[string]string, error) {
 
 	list := make(map[string]string)
 	for rows.Next() {
-		if err := rows.Scan(&full, &short); err != nil {
+		if err = rows.Scan(&full, &short); err != nil {
 			logger.Log().Error("select list from db error", zap.Error(err))
 			return nil, err
 		}
@@ -78,14 +79,14 @@ func GetFull(ctx context.Context, conn Connector, short string) (string, error) 
 	defer rows.Close()
 
 	if !rows.Next() {
-		err := fmt.Errorf("full name for %s not found", short)
+		err = fmt.Errorf("full name for %s not found", short)
 		logger.Log().Info("error", zap.Error(err))
 		return "", fmt.Errorf("full name for %s not found", short)
 	}
 
 	var full *string
 	var deleted bool
-	if err := rows.Scan(&full, &deleted); err != nil {
+	if err = rows.Scan(&full, &deleted); err != nil {
 		logger.Log().Error("error", zap.Error(err))
 		return "", err
 	}
@@ -141,7 +142,7 @@ func GetUser(ctx context.Context, conn Connector, user string) ([]model.StoreIte
 	resp := make([]model.StoreItem, 0)
 	var full, short string
 	for rows.Next() {
-		if err := rows.Scan(&full, &short); err != nil {
+		if err = rows.Scan(&full, &short); err != nil {
 			logger.Log().Error("error", zap.Error(err))
 			return nil, err
 		}
@@ -193,7 +194,7 @@ func getShort(ctx context.Context, conn Connector, full string) (string, error) 
 
 	var short *string
 	var deleted bool
-	if err := rows.Scan(&short, &deleted); err != nil {
+	if err = rows.Scan(&short, &deleted); err != nil {
 		logger.Log().Error("error", zap.Error(err))
 		return "", err
 	}

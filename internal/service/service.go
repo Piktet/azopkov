@@ -1,3 +1,4 @@
+// Package service сервис скоращения адресов
 package service
 
 import (
