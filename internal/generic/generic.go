@@ -9,10 +9,12 @@ type ResetPool interface {
 	Reset()
 }
 
+// Pool структура для хранения данных.
 type Pool[T any] struct {
 	pool sync.Pool
 }
 
+// ResetPool сбросить данные.
 func New[T ResetPool]() *Pool[T] {
 	return &Pool[T]{
 		pool: sync.Pool{
@@ -24,6 +26,7 @@ func New[T ResetPool]() *Pool[T] {
 	}
 }
 
+// Get получить данные.
 func (p *Pool[T]) Get() T {
 	if v := p.pool.Get(); v != nil {
 		return v.(T)
@@ -32,6 +35,7 @@ func (p *Pool[T]) Get() T {
 	return x
 }
 
+// Put добавить данные.
 func (p *Pool[T]) Put(obj T) {
 	if x, ok := any(obj).(ResetPool); ok {
 		x.Reset()

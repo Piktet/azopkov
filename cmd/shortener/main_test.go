@@ -40,12 +40,19 @@ func Test_run(t *testing.T) {
 	ctx, fnCancel := context.WithTimeoutCause(context.Background(), time.Second*2, errors.New("test stop with timeout 2 seconds"))
 	defer fnCancel()
 	tests := []struct {
-		name    string // description of this test case
-		wantErr bool
+		name        string // description of this test case
+		enableHTTPS bool
+		wantErr     bool
 	}{
 		{
-			name:    "positive",
-			wantErr: true,
+			name:        "positive_http",
+			enableHTTPS: false,
+			wantErr:     true,
+		},
+		{
+			name:        "positive_https",
+			enableHTTPS: true,
+			wantErr:     true,
 		},
 	}
 	for _, test := range tests {
@@ -53,7 +60,7 @@ func Test_run(t *testing.T) {
 			listner := &http.Server{
 				Addr: ":8000",
 			}
-			run(ctx, listner)
+			run(ctx, listner, test.enableHTTPS)
 		})
 	}
 }
