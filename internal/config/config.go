@@ -55,10 +55,10 @@ const (
 	envAuditAddress     = "AUDIT_URL"
 	descAuditAddress    = "полный URL удаленного сервера-приёмника, куда отправляются логи аудита"
 
-	defaultEnableHttps = false
-	flagEnableHttps    = "s"
-	envEnableHttps     = "ENABLE_HTTPS"
-	descEnableHttps    = "использовать HTTPS"
+	defaultEnableHTTPS = false
+	flagEnableHTTPS    = "s"
+	envEnableHTTPS     = "ENABLE_HTTPS"
+	descEnableHTTPS    = "использовать HTTPS"
 )
 
 // DefaultConfig — конфигурация по умолчанию.
@@ -94,8 +94,7 @@ func New() *Config {
 	connAddress := setParamString(envConnAddress, flagConnAddress, defaultConnAddress, descConnAddress)
 	auditFile := setParamString(envAuditFile, flagAuditFile, defaultAuditFile, descAuditFile)
 	auditAddress := setParamString(envAuditAddress, flagAuditAddress, defaultAuditAddress, descAuditAddress)
-	enableHTTPS := setParamBool(envEnableHttps, flagEnableHttps, defaultEnableHttps, descEnableHttps)
-
+	enableHTTPS := setParamBool(envEnableHTTPS, flagEnableHTTPS, defaultEnableHTTPS, descEnableHTTPS)
 	flag.Parse()
 
 	return &Config{
