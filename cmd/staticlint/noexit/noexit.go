@@ -15,30 +15,35 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	// для пакета main
+	if pass.Pkg.Name() != "main" {
+		return nil, nil
+	}
 	for _, file := range pass.Files {
 		// для файла main
-		if pass.Pkg.Name() == "main" && pass.Fset.File(file.Pos()).Name() != "main.go" {
+		if pass.Fset.File(file.Pos()).Name() != "main.go" {
+			continue
+		}
 
-			// ищем main
-			ast.Inspect(file, func(n ast.Node) bool {
-				if fn, ok := n.(*ast.FuncDecl); ok && fn.Name.Name == "main" {
+		ast.Inspect(file, func(n ast.Node) bool {
+			// ищем main()
+			if fn, ok := n.(*ast.FuncDecl); ok && fn.Name.Name == "main" {
 
-					// ищем os.Exit
-					ast.Inspect(fn.Body, func(n ast.Node) bool {
-						if call, ok := n.(*ast.CallExpr); ok {
-							if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
-								switch pkgIdent, ok := sel.X.(*ast.Ident); {
-								case pkgIdent.Name == "os" && ok && sel.Sel.Name == "Exit":
-									pass.Reportf(call.Pos(), "нельзя использовать os.Exit в main")
-								}
+				// ищем os.Exit()
+				ast.Inspect(fn.Body, func(n ast.Node) bool {
+					if call, ok := n.(*ast.CallExpr); ok {
+						if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+							switch pkgIdent, ok := sel.X.(*ast.Ident); {
+							case pkgIdent.Name == "os" && ok && sel.Sel.Name == "Exit":
+								pass.Reportf(call.Pos(), "нельзя использовать os.Exit в main")
 							}
 						}
-						return true
-					})
-				}
-				return true
-			})
-		}
+					}
+					return true
+				})
+			}
+			return true
+		})
 
 	}
 	return nil, nil

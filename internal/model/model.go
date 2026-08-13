@@ -27,11 +27,13 @@ const (
 var ErrorDeleted = errors.New("item deleted")
 
 // Request представляет тело входного запроса на сокращение URL.
+// generate:reset
 type Request struct {
 	Full string `json:"url"`
 }
 
 // Response представляет тело выходного ответа с сокращённым URL.
+// generate:reset
 type Response struct {
 	Short string `json:"result"`
 }
@@ -67,24 +69,28 @@ type Storage interface {
 }
 
 // ShortItem представляет элемент ответа с коротким URL и корреляционным ID.
+// generate:reset
 type ShortItem struct {
 	Corr  string `json:"correlation_id"`
 	Short string `json:"short_url"`
 }
 
 // FullItem представляет элемент входного запроса с полным URL и корреляционным ID.
+// generate:reset
 type FullItem struct {
 	Corr string `json:"correlation_id"`
 	Full string `json:"original_url"`
 }
 
 // StoreItem представляет сохранённую запись сопоставления короткого и полного URL.
+// generate:reset
 type StoreItem struct {
 	Short string `json:"short_url"`
 	Full  string `json:"original_url"`
 }
 
 // AuditData содержит данные для записи в лог аудита.
+// generate:reset
 type AuditData struct {
 	Created int64  `json:"ts"`
 	Action  string `json:"action"`
