@@ -78,12 +78,11 @@ func processPath(path string) error {
 		return err
 	}
 
-	var structs []StructInfo
 	var resultErr error
 
 	for _, pkg := range pkgs {
+		var structs []StructInfo
 		for _, file := range pkg.GoFiles {
-
 			astFile, err := parser.ParseFile(token.NewFileSet(), file, nil, parser.ParseComments)
 			if err != nil {
 				continue
@@ -130,7 +129,6 @@ func processPath(path string) error {
 			if err := generateFile(pkg.Dir, pkg.Name, structs); err != nil {
 				resultErr = errors.Join(resultErr, err)
 			}
-			structs = structs[:0]
 		}
 	}
 	return resultErr
@@ -142,7 +140,10 @@ func generateFile(dir, pkg string, structs []StructInfo) error {
 		"fieldReset": fieldReset,
 	}
 
-	tmpl, _ := template.New("reset").Funcs(funcMap).Parse(resetTemplate)
+	tmpl, err := template.New("reset").Funcs(funcMap).Parse(resetTemplate)
+	if err != nil {
+		return err
+	}
 
 	data := struct {
 		Package string
@@ -165,7 +166,11 @@ func generateFile(dir, pkg string, structs []StructInfo) error {
 	}
 
 	path := filepath.Join(dir, "reset.gen.go")
-	os.WriteFile(path, formatted, 0644)
+
+	err = os.WriteFile(path, formatted, 0644)
+	if err != nil {
+		return err
+	}
 	fmt.Println("generated ", path)
 	return nil
 }

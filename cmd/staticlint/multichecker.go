@@ -48,11 +48,8 @@ func main() {
 		}
 	}
 
-	if len(stylecheck.Analyzers) > 0 {
-		for _, v := range stylecheck.Analyzers {
-			analyzers = append(analyzers, v.Analyzer)
-			break
-		}
+	for _, v := range stylecheck.Analyzers {
+		analyzers = append(analyzers, v.Analyzer)
 	}
 
 	count := 0

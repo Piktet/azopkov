@@ -20,11 +20,6 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, nil
 	}
 	for _, file := range pass.Files {
-		// для файла main
-		if pass.Fset.File(file.Pos()).Name() != "main.go" {
-			continue
-		}
-
 		ast.Inspect(file, func(n ast.Node) bool {
 			// ищем main()
 			if fn, ok := n.(*ast.FuncDecl); ok && fn.Name.Name == "main" {
