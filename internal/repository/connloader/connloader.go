@@ -1,3 +1,4 @@
+// Package connloader загрузчик из БД.
 package connloader
 
 import (

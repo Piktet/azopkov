@@ -1,3 +1,4 @@
+// Package auth авторизация
 package auth
 
 import (

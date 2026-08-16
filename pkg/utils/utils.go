@@ -1,3 +1,4 @@
+// Package utils вспомогательные функции
 package utils
 
 import (

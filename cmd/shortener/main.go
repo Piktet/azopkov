@@ -31,7 +31,18 @@ import (
 // const addr = "localhost:8080"
 const stopTimeout = 5 * time.Second
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 func main() {
+
+	fmt.Println("Build version: ", buildVersion)
+	fmt.Println("Build date: ", buildDate)
+	fmt.Println("Build commit: ", buildCommit)
+
 	if err := runSrv(context.WithCancelCause(context.Background())); err != nil {
 		log.Fatalf("exist with error: %v", err)
 	}
@@ -92,7 +103,7 @@ func runSrv(ctx context.Context, fnCancel context.CancelCauseFunc) error {
 	}
 
 	if cfg.GetAuditAddress() != "" {
-		auditEvent.Register(audit.NewAddressObserver(cfg.GetAuditFile()))
+		auditEvent.Register(audit.NewAddressObserver(cfg.GetAuditAddress()))
 	}
 
 	srv.SetAudit(auditEvent)
@@ -152,7 +163,6 @@ func run(ctx context.Context, srv *http.Server) error {
 		logger.Log().Info("HTTP server ListenAndServe", zap.Error(err))
 		return err
 	}
-
 	logger.Log().Info("exit")
 	return nil
 }

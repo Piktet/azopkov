@@ -1,3 +1,4 @@
+// Package compress сжатие
 package compress
 
 import (

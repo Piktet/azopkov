@@ -1,3 +1,4 @@
+// Package audit передача сообщений аудита
 package audit
 
 import (
