@@ -17,6 +17,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -47,10 +48,18 @@ var (
 )
 
 func main() {
-
-	fmt.Println("Build version: ", buildVersion)
-	fmt.Println("Build date: ", buildDate)
-	fmt.Println("Build commit: ", buildCommit)
+	if strings.TrimSpace(buildVersion) == "" {
+		buildVersion = "N/A"
+	}
+	if strings.TrimSpace(buildDate) == "" {
+		buildDate = "N/A"
+	}
+	if strings.TrimSpace(buildCommit) == "" {
+		buildCommit = "N/A"
+	}
+	fmt.Printf("Build version: %s", buildVersion)
+	fmt.Printf("Build date: %s", buildDate)
+	fmt.Printf("Build commit: %s", buildCommit)
 
 	if err := runSrv(context.WithCancelCause(context.Background())); err != nil {
 		log.Fatalf("exist with error: %v", err)

@@ -28,8 +28,7 @@ func run(pass *analysis.Pass) (any, error) {
 				ast.Inspect(fn.Body, func(n ast.Node) bool {
 					if call, ok := n.(*ast.CallExpr); ok {
 						if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
-							switch pkgIdent, ok := sel.X.(*ast.Ident); {
-							case pkgIdent.Name == "os" && ok && sel.Sel.Name == "Exit":
+							if pkgIdent, okident := sel.X.(*ast.Ident); okident && pkgIdent.Name == "os" && sel.Sel.Name == "Exit" {
 								pass.Reportf(call.Pos(), "нельзя использовать os.Exit в main")
 							}
 						}
