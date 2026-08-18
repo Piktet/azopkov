@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
 
 	"github.com/Piktet/azopkov.git/internal/auth"
 	"github.com/Piktet/azopkov.git/internal/compress"
@@ -29,6 +31,7 @@ import (
 	"github.com/Piktet/azopkov.git/internal/handler"
 	"github.com/Piktet/azopkov.git/internal/logger"
 	"github.com/Piktet/azopkov.git/internal/model"
+	"github.com/Piktet/azopkov.git/internal/proto"
 	"github.com/Piktet/azopkov.git/internal/repository/audit"
 	"github.com/Piktet/azopkov.git/internal/repository/connloader"
 	"github.com/Piktet/azopkov.git/internal/repository/fileloader"
@@ -40,6 +43,7 @@ import (
 // Формат: "хост:порт" — localhost:8080.
 // const addr = "localhost:8080"
 const stopTimeout = 5 * time.Second
+const defaultGrpcAddress = ":5300"
 
 var (
 	buildVersion = "N/A"
@@ -148,61 +152,97 @@ func runSrv(ctx context.Context, fnCancel context.CancelCauseFunc) error {
 
 	var tlsConfig *tls.Config
 	if cfg.IsEnableHTTPS() {
-
 		if cert, err := makeCertificate(); err == nil {
 			tlsConfig = &tls.Config{Certificates: cert}
 		}
 	}
 
-	if err := run(ctx, &http.Server{
+	grpcServer := grpc.NewServer()
+	proto.RegisterShortenerServiceServer(grpcServer, srv)
+
+	httpServer := &http.Server{
 		Addr:         cfg.GetServerAddress(),
 		Handler:      router,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
 		TLSConfig:    tlsConfig,
-	}); err != nil {
+	}
+
+	go configureStop(ctx, grpcServer, httpServer)
+
+	var wg errgroup.Group
+
+	wg.Go(func() error {
+		return runHTTP(cfg.GetServerAddress(), httpServer)
+	})
+
+	wg.Go(func() error {
+		return runGrpc(defaultGrpcAddress, grpcServer)
+	})
+
+	if err := wg.Wait(); err != nil {
 		fnCancel(err)
 		return err
 	}
 	fnCancel(nil)
 
+	logger.Log().Info("exit")
+
 	return nil
 }
 
-func run(ctx context.Context, srv *http.Server) error {
+func configureStop(ctx context.Context, gsrv *grpc.Server, srv *http.Server) {
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	go func() {
-		sigint := make(chan os.Signal, 1)
-		signal.Notify(sigint, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	select {
+	case s := <-sigint:
+		logger.Log().Info("stop with signal", zap.String("signal", s.String()))
+	case <-ctx.Done():
+		logger.Log().Info("stop with context", zap.Error(context.Cause(ctx)))
+	}
+	gsrv.GracefulStop()
+	stopCtx, cancel := context.WithTimeoutCause(context.Background(), stopTimeout, fmt.Errorf("server Shutdown with timeout %v", stopTimeout))
+	defer cancel()
+	if err := srv.Shutdown(stopCtx); err != nil {
+		logger.Log().Info("HTTP server shutdown", zap.Error(err))
+	}
+}
 
-		select {
-		case s := <-sigint:
-			logger.Log().Info("stop with signal", zap.String("signal", s.String()))
-		case <-ctx.Done():
-			logger.Log().Info("stop with context", zap.Error(context.Cause(ctx)))
-		}
+func runHTTP(address string, srv *http.Server) error {
 
-		stopCtx, cancel := context.WithTimeoutCause(context.Background(), stopTimeout, fmt.Errorf("server Shutdown with timeout %v", stopTimeout))
-		defer cancel()
-		if err := srv.Shutdown(stopCtx); err != nil {
-			logger.Log().Info("HTTP server shutdown", zap.Error(err))
-		}
-	}()
+	l, err := net.Listen("tcp", address)
+	if err != nil {
+		return err
+	}
+
 	// Запускаем HTTP-сервер
-	//panic при ошибке
 	if srv.TLSConfig != nil {
-		if err := srv.ListenAndServeTLS("", ""); err != http.ErrServerClosed {
-			logger.Log().Info("HTTP server ListenAndServe", zap.Error(err))
+		if err := srv.ServeTLS(l, "", ""); err != http.ErrServerClosed {
+			logger.Log().Info("HTTP server ServeTLS", zap.Error(err))
 			return err
 		}
 	} else {
-		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-			logger.Log().Info("HTTP server ListenAndServe", zap.Error(err))
+		if err := srv.Serve(l); err != http.ErrServerClosed {
+			logger.Log().Info("HTTP server Serve", zap.Error(err))
 			return err
 		}
 	}
 	logger.Log().Info("exit")
+	return nil
+}
+
+func runGrpc(address string, gsrv *grpc.Server) error {
+	l, err := net.Listen("tcp", address)
+	if err != nil {
+		return err
+	}
+
+	if err := gsrv.Serve(l); err != nil {
+		logger.Log().Info("GRPC server Serve", zap.Error(err))
+		return err
+	}
 	return nil
 }
 

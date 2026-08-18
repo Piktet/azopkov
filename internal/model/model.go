@@ -22,6 +22,7 @@ const (
 	CookieUser = "User"
 
 	ContextValueUser = "User"
+	ContextValueAuth = "authorization"
 )
 
 // ErrorDeleted возвращается при попытке получить запись, которая была удалена.

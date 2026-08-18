@@ -13,6 +13,7 @@ import (
 
 	"github.com/Piktet/azopkov.git/internal/logger"
 	"github.com/Piktet/azopkov.git/internal/model"
+	"github.com/Piktet/azopkov.git/internal/proto"
 	"github.com/Piktet/azopkov.git/internal/service"
 	"github.com/Piktet/azopkov.git/pkg/utils"
 	"github.com/go-chi/chi/v5"
@@ -51,6 +52,7 @@ func NewConn(x model.ConnLoader) *ConnServer {
 //   - u — базовый URL (например, http://localhost:8080).
 //   - audit — интерфейс для отправки логов аудита.
 type StorageServer struct {
+	proto.UnimplementedShortenerServiceServer
 	model.Storage
 	u      *url.URL
 	audit  model.Audit
@@ -150,11 +152,11 @@ func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) 
 	short, shorterr := p.GetShort(r.Context(), full, user)
 	if shorterr != nil && !errors.Is(shorterr, utils.ErrConflict) {
 		if errors.Is(shorterr, model.ErrorDeleted) {
-			logger.Log().Error("error getting short", zap.Error(err))
+			logger.Log().Error("error getting short", zap.Error(shorterr))
 			w.WriteHeader(http.StatusGone)
 			return
 		}
-		logger.Log().Error("error getting short", zap.Error(err))
+		logger.Log().Error("error getting short", zap.Error(shorterr))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
