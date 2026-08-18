@@ -9,161 +9,200 @@ Package config конфигурация
 package config
 
 import (
+	"encoding/json"
 	"flag"
-	"net"
-	"net/url"
 	"os"
-	"strings"
+	"sync"
 )
 
 // ShortLen — длина генерируемого короткого URL в символах.
 const ShortLen = 6
 
+type sourceType int
+
 const (
-	defaultServerAddress = ":8080"
-	flagServerAddress    = "a"
-	envServerAddress     = "SERVER_ADDRESS"
-	descServerAddress    = "адрес запуска HTTP-сервера"
-
-	defaultBaseAddress = "http://localhost:8080"
-	flagBaseAddress    = "b"
-	envBaseAddress     = "BASE_URL"
-	descBaseAddress    = "базовый адрес результирующего сокращённого URL"
-
-	defaultLogLevel = "Info"
-	flagLogLevel    = "l"
-	envLogLevel     = "LOG_LEVEL"
-	descLogLevel    = "уровень логирования"
-
-	defaultFileName = ""
-	flagFileName    = "f"
-	envFileName     = "FILE_STORAGE_PATH"
-	descFileName    = "файл для хранения сокращенных адресов"
-
-	defaultConnAddress = ""
-	flagConnAddress    = "d"
-	envConnAddress     = "DATABASE_DSN"
-	descConnAddress    = "строка с адресом подключения к БД"
-
-	defaultAuditFile = ""
-	flagAuditFile    = "audit-file"
-	envAuditFile     = "AUDIT_FILE"
-	descAuditFile    = "путь к файлу-приёмнику, в который сохраняются логи аудита"
-
-	defaultAuditAddress = ""
-	flagAuditAddress    = "audit-url"
-	envAuditAddress     = "AUDIT_URL"
-	descAuditAddress    = "полный URL удаленного сервера-приёмника, куда отправляются логи аудита"
+	_ sourceType = iota
+	sourceEnv
+	sourceFlag
+	sourceConfig
+	sourceDefault
 )
 
-// DefaultConfig — конфигурация по умолчанию.
-var DefaultConfig = &Config{
-	serverAddress: defaultServerAddress,
-	baseAddress:   defaultBaseAddress,
-	logLevel:      defaultLogLevel,
-	fileName:      defaultFileName,
-	connAddress:   defaultConnAddress,
+type valueTypeType int
+
+const (
+	_ valueTypeType = iota
+	valueString
+	valueBool
+)
+
+type ConfigValue struct {
+	defaultValue any
+	flagName     []string
+	envName      string
+	description  string
+
+	value     any
+	valueType valueTypeType
+
+	source sourceType
 }
+
+type configType string
+
+const (
+	configServerAddress = "server_address"
+	configBaseAddress   = "base_url"
+	configLogLevel      = "log_level"
+	configFileName      = "file_storage_path"
+	configConnAddress   = "database_dsn"
+	configAuditFile     = "audit_file"
+	configAuditAddress  = "audit_url"
+	configEnableHTTPS   = "enable_https"
+	configConfigFile    = "config_file"
+)
+
+const (
+	defaultServerAddress = ":8080"
+	defaultBaseAddress   = "http://localhost:8080"
+	defaultLogLevel      = "Info"
+)
+
+var (
+	configData = map[configType]*ConfigValue{
+		configServerAddress: {defaultValue: defaultServerAddress, flagName: []string{"a"}, envName: "SERVER_ADDRESS", description: "", valueType: valueString},
+		configBaseAddress:   {defaultValue: defaultBaseAddress, flagName: []string{"b"}, envName: "BASE_URL", description: "", source: sourceDefault, valueType: valueString},
+		configLogLevel:      {defaultValue: defaultLogLevel, flagName: []string{"l"}, envName: "LOG_LEVEL", description: "", valueType: valueString},
+		configFileName:      {defaultValue: "", flagName: []string{"f"}, envName: "FILE_STORAGE_PATH", description: "", valueType: valueString},
+		configConnAddress:   {defaultValue: "", flagName: []string{"d"}, envName: "DATABASE_DSN", description: "", valueType: valueString},
+		configAuditFile:     {defaultValue: "", flagName: []string{"audit-file"}, envName: "AUDIT_FILE", description: "", valueType: valueString},
+		configAuditAddress:  {defaultValue: "", flagName: []string{"audit-url"}, envName: "AUDIT_URL", description: "", valueType: valueString},
+		configEnableHTTPS:   {defaultValue: false, flagName: []string{"s"}, envName: "ENABLE_HTTPS", description: "", valueType: valueBool},
+		configConfigFile:    {defaultValue: "", flagName: []string{"c", "config"}, envName: "CONFIG", description: "файл конфигурации", valueType: valueString},
+	}
+)
 
 // Config содержит параметры конфигурации сервера.
 type Config struct {
-	serverAddress string
-	baseAddress   string
-	logLevel      string
-	fileName      string
-	connAddress   string
-	auditFile     string
-	auditAddress  string
+	list map[configType]*ConfigValue
 }
+
+var fn sync.Once
 
 // New создаёт и возвращает конфигурацию, читая значения из флагов и переменных окружения.
 func New() *Config {
+	fn.Do(func() {
 
-	serverAddress := setAddress(envServerAddress, flagServerAddress, defaultServerAddress, descServerAddress)
-	baseAddress := setAddress(envBaseAddress, flagBaseAddress, defaultBaseAddress, descBaseAddress)
-	logLevel := setAddress(envLogLevel, flagLogLevel, defaultLogLevel, descLogLevel)
-	fileName := setAddress(envFileName, flagFileName, defaultFileName, descFileName)
-	connAddress := setAddress(envConnAddress, flagConnAddress, defaultConnAddress, descConnAddress)
-	auditFile := setAddress(envAuditFile, flagAuditFile, defaultAuditFile, descAuditFile)
-	auditAddress := setAddress(envAuditAddress, flagAuditAddress, defaultAuditAddress, descAuditAddress)
+		for _, v := range configData {
+			v.value = v.defaultValue
+			v.source = sourceDefault
+			switch v.valueType {
 
-	flag.Parse()
+			case valueString:
+				for _, f := range v.flagName {
+					_ = flag.String(f, v.defaultValue.(string), v.description)
+				}
+			case valueBool:
+				for _, f := range v.flagName {
+					_ = flag.Bool(f, v.defaultValue.(bool), v.description)
+				}
+			}
+			if respEnv, ok := os.LookupEnv(v.envName); ok && respEnv != "" {
+				v.value = respEnv
+				v.source = sourceEnv
+			}
+		}
 
-	return &Config{
-		serverAddress: validateServerAddress(*serverAddress, defaultServerAddress),
-		baseAddress:   validateBaseAddress(*baseAddress, defaultBaseAddress),
-		logLevel:      *logLevel,
-		fileName:      *fileName,
-		connAddress:   *connAddress,
-		auditFile:     *auditFile,
-		auditAddress:  validateBaseAddress(*auditAddress, defaultAuditAddress),
+		flag.Parse()
+
+		flag.Visit(func(flagValue *flag.Flag) {
+			if v, ok := configData[configType(flagValue.Name)]; ok {
+				v.source = sourceFlag
+				switch v.valueType {
+				case valueString:
+					v.value = flagValue.Value.String()
+				case valueBool:
+					v.value = flagValue.Value.String() == "true"
+				}
+			}
+		})
+
+		if confFile, ok := configData[configConfigFile]; ok {
+			if data, err := os.ReadFile(confFile.value.(string)); err == nil {
+				val := make(map[string]any)
+				if err = json.Unmarshal(data, &val); err == nil {
+					for k, v := range val {
+						if item, ok := configData[configType(k)]; ok {
+							if item.source == sourceDefault {
+								item.source = sourceConfig
+								switch item.valueType {
+								case valueString:
+									item.value = v.(string)
+								case valueBool:
+									item.value = v.(bool)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+	})
+	return &Config{list: configData}
+}
+
+func (c *Config) getString(name configType) string {
+	if v, ok := c.list[name]; ok && v != nil && v.valueType == valueString && v.value != nil {
+		return v.value.(string)
 	}
+	return ""
+}
+
+func (c *Config) getBool(name configType) bool {
+	if v, ok := c.list[name]; ok && v != nil && v.valueType == valueBool && v.value != nil {
+		return v.value.(bool)
+	}
+	return false
+
 }
 
 // GetBaseAddress возвращает базовый адрес результирующего сокращённого URL.
 func (c *Config) GetBaseAddress() string {
-	return c.baseAddress
+	return c.getString(configBaseAddress)
 }
 
 // GetServerAddress возвращает адрес запуска HTTP-сервера.
 func (c *Config) GetServerAddress() string {
-	return c.serverAddress
+	return c.getString(configServerAddress)
 }
 
 // GetLogLevel возвращает уровень логирования.
 func (c *Config) GetLogLevel() string {
-	return c.logLevel
+	return c.getString(configLogLevel)
 }
 
 // GetFileName возвращает путь к файлу для хранения сокращённых адресов.
 func (c *Config) GetFileName() string {
-	return c.fileName
+	return c.getString(configFileName)
 }
 
 // GetConnAddress возвращает строку подключения к базе данных.
 func (c *Config) GetConnAddress() string {
-	return c.connAddress
+	return c.getString(configConnAddress)
 }
 
 // GetAuditFile возвращает путь к файлу-приёмнику логов аудита.
 func (c *Config) GetAuditFile() string {
-	return c.auditFile
+	return c.getString(configAuditFile)
 }
 
 // GetAuditAddress возвращает URL удалённого сервера-приёмника логов аудита.
 func (c *Config) GetAuditAddress() string {
-	return c.auditAddress
+	return c.getString(configAuditAddress)
 }
 
-func setAddress(envAddress, flagName, defaultAddress, description string) *string {
-	flagaddress := flag.String(flagName, defaultAddress, description)
-	if address, ok := os.LookupEnv(envAddress); ok && address != "" {
-		return &address
-	}
-	return flagaddress
-}
-
-func validateServerAddress(address, defaultAddress string) string {
-	addrList := strings.Split(address, ":")
-	if len(addrList) < 1 || len(addrList) > 2 || len(addrList) == 1 && addrList[0] == "" {
-		return defaultAddress
-	}
-
-	if len(addrList) < 2 || addrList[1] == "" {
-		return addrList[0]
-	}
-	return net.JoinHostPort(addrList[0], addrList[1])
-}
-
-func validateBaseAddress(address, defaultAddress string) string {
-	u, err := url.Parse(address)
-	if err != nil {
-		return defaultAddress
-	}
-
-	if u.Scheme == "" || u.Host == "" {
-		return defaultAddress
-	}
-
-	return u.String()
+// IsEnableHTTPS использовать HTTPS
+func (c *Config) IsEnableHTTPS() bool {
+	return c.getBool(configEnableHTTPS)
 }

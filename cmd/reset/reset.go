@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/format"
-	"go/parser"
 	"go/token"
 	"os"
 	"path/filepath"
@@ -82,11 +81,8 @@ func processPath(path string) error {
 
 	for _, pkg := range pkgs {
 		var structs []StructInfo
-		for _, file := range pkg.GoFiles {
-			astFile, err := parser.ParseFile(token.NewFileSet(), file, nil, parser.ParseComments)
-			if err != nil {
-				continue
-			}
+
+		for _, astFile := range pkg.Syntax {
 
 			ast.Inspect(astFile, func(n ast.Node) bool {
 				gen, ok := n.(*ast.GenDecl)
