@@ -47,3 +47,8 @@ func (p *memLoader) GetUserList(ctx context.Context, user string) ([]model.Store
 func (p *memLoader) DeleteList(context.Context, []string, string) error {
 	return errors.New("unsupport")
 }
+
+// GetStat получение статистики пользователей и адресов.
+func (p *memLoader) GetStat(context.Context) (int, int, error) {
+	return 0, 0, errors.New("unsupport")
+}

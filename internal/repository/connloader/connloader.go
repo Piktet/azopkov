@@ -4,6 +4,7 @@ package connloader
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/Piktet/azopkov.git/internal/logger"
 	"github.com/Piktet/azopkov.git/internal/model"
@@ -161,26 +162,11 @@ func (p *ConnLoader) DeleteList(ctx context.Context, short []string, user string
 
 	return p.deleteList(ctx, short, user)
 
-	/*
-		chShort := make(chan string, len(short))
-		defer close(chShort)
+}
 
-		go p.deleteList(ctx, chShort, user)
-
-		var wg sync.WaitGroup
-		for _, v := range short {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				select {
-				case chShort <- v:
-					return
-				case <-ctx.Done():
-					return
-				}
-			}()
-		}
-		wg.Wait()
-		return nil
-	*/
+// GetStat получение статистики по пользователям и адресам.
+func (p *ConnLoader) GetStat(ctx context.Context) (int, int, error) {
+	userCount, userErr := db.GetUserCount(ctx, p.conn)
+	addressCount, addressErr := db.GetAddressCount(ctx, p.conn)
+	return userCount, addressCount, errors.Join(userErr, addressErr)
 }

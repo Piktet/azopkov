@@ -4,6 +4,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/Piktet/azopkov.git/internal/config"
@@ -166,6 +167,76 @@ func Delete(ctx context.Context, conn Connector, short []string, user string) er
 	logger.Log().Error("delete Ok", zap.String("short", fmt.Sprintf("%v", short)))
 
 	return nil
+}
+
+// GetUserCount количество пользователей.
+func GetUserCount(ctx context.Context, conn Connector) (int, error) {
+	rows, err := conn.QueryContext(ctx, "select count(*) from t_user")
+	if err != nil {
+		logger.Log().Error("error", zap.Error(err))
+		return 0, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		err = errors.New("users not found")
+		logger.Log().Info("error", zap.Error(err))
+		return 0, err
+	}
+
+	var count *int
+	if err = rows.Scan(&count); err != nil {
+		logger.Log().Error("error", zap.Error(err))
+		return 0, err
+	}
+
+	if err = rows.Err(); err != nil {
+		logger.Log().Error("error", zap.Error(err))
+		return 0, err
+	}
+
+	if count == nil {
+		err = errors.New("users count is empty")
+		logger.Log().Info("error", zap.Error(err))
+		return 0, err
+	}
+
+	return *count, nil
+}
+
+// GetUserCount количество пользователей.
+func GetAddressCount(ctx context.Context, conn Connector) (int, error) {
+	rows, err := conn.QueryContext(ctx, "select count(*) from t_data")
+	if err != nil {
+		logger.Log().Error("error", zap.Error(err))
+		return 0, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		err = errors.New("addresses not found")
+		logger.Log().Info("error", zap.Error(err))
+		return 0, err
+	}
+
+	var count *int
+	if err = rows.Scan(&count); err != nil {
+		logger.Log().Error("error", zap.Error(err))
+		return 0, err
+	}
+
+	if err = rows.Err(); err != nil {
+		logger.Log().Error("error", zap.Error(err))
+		return 0, err
+	}
+
+	if count == nil {
+		err = errors.New("addresses count is empty")
+		logger.Log().Info("error", zap.Error(err))
+		return 0, err
+	}
+
+	return *count, nil
 }
 
 func store(ctx context.Context, conn Connector, full, short, user string) error {

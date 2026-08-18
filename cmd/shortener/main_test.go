@@ -60,7 +60,7 @@ func Test_run(t *testing.T) {
 			listner := &http.Server{
 				Addr: ":8000",
 			}
-			run(ctx, listner, test.enableHTTPS)
+			run(ctx, listner)
 		})
 	}
 }

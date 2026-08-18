@@ -57,9 +57,9 @@ func main() {
 	if strings.TrimSpace(buildCommit) == "" {
 		buildCommit = "N/A"
 	}
-	fmt.Printf("Build version: %s", buildVersion)
-	fmt.Printf("Build date: %s", buildDate)
-	fmt.Printf("Build commit: %s", buildCommit)
+	fmt.Printf("Build version: %s\n", buildVersion)
+	fmt.Printf("Build date: %s\n", buildDate)
+	fmt.Printf("Build commit: %s\n", buildCommit)
 
 	if err := runSrv(context.WithCancelCause(context.Background())); err != nil {
 		log.Fatalf("exist with error: %v", err)
@@ -69,7 +69,11 @@ func main() {
 func runSrv(ctx context.Context, fnCancel context.CancelCauseFunc) error {
 	// Создаём новый экземпляр HTTP-сервера
 	//srv := handler.New(addr)
-	cfg := config.New()
+	cfg, err := config.New()
+	if err != nil {
+		return err
+	}
+
 	if err := logger.InitLogger("info"); err != nil {
 		panic(err)
 	}
@@ -124,7 +128,7 @@ func runSrv(ctx context.Context, fnCancel context.CancelCauseFunc) error {
 		auditEvent.Register(audit.NewAddressObserver(cfg.GetAuditAddress()))
 	}
 
-	srv.SetAudit(auditEvent)
+	srv.SetTrustedSubnet(cfg.GetTrustedSubnet())
 
 	router := chi.NewRouter()
 
@@ -140,11 +144,13 @@ func runSrv(ctx context.Context, fnCancel context.CancelCauseFunc) error {
 	router.Get("/ping", connServer.HandlerGetPing)
 	router.Get("/api/user/urls", srv.HandlerGetUser)
 	router.Delete("/api/user/urls", srv.HandlerDelete)
+	router.Get("/api/internal/stats", srv.HandlerGetStat)
 
-	tlsConfig := &tls.Config{}
+	var tlsConfig *tls.Config
 	if cfg.IsEnableHTTPS() {
+
 		if cert, err := makeCertificate(); err == nil {
-			tlsConfig.Certificates = cert
+			tlsConfig = &tls.Config{Certificates: cert}
 		}
 	}
 
@@ -155,7 +161,7 @@ func runSrv(ctx context.Context, fnCancel context.CancelCauseFunc) error {
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
 		TLSConfig:    tlsConfig,
-	}, cfg.IsEnableHTTPS()); err != nil {
+	}); err != nil {
 		fnCancel(err)
 		return err
 	}
@@ -164,7 +170,7 @@ func runSrv(ctx context.Context, fnCancel context.CancelCauseFunc) error {
 	return nil
 }
 
-func run(ctx context.Context, srv *http.Server, isEnableHTTPS bool) error {
+func run(ctx context.Context, srv *http.Server) error {
 
 	go func() {
 		sigint := make(chan os.Signal, 1)
@@ -185,7 +191,7 @@ func run(ctx context.Context, srv *http.Server, isEnableHTTPS bool) error {
 	}()
 	// Запускаем HTTP-сервер
 	//panic при ошибке
-	if isEnableHTTPS {
+	if srv.TLSConfig != nil {
 		if err := srv.ListenAndServeTLS("", ""); err != http.ErrServerClosed {
 			logger.Log().Info("HTTP server ListenAndServe", zap.Error(err))
 			return err

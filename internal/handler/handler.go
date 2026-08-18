@@ -52,8 +52,9 @@ func NewConn(x model.ConnLoader) *ConnServer {
 //   - audit — интерфейс для отправки логов аудита.
 type StorageServer struct {
 	model.Storage
-	u     *url.URL
-	audit model.Audit
+	u      *url.URL
+	audit  model.Audit
+	subnet string
 }
 
 // New создаёт новый экземпляр StorageServer с заданным базовым адресом.
@@ -76,6 +77,11 @@ func (p *StorageServer) SetLoader(loader model.Storage) {
 // SetAudit устанавливает интерфейс аудита для сервера.
 func (p *StorageServer) SetAudit(audit model.Audit) {
 	p.audit = audit
+}
+
+// SetTrustedSubnet установка места отправки аудита.
+func (p *StorageServer) SetTrustedSubnet(subnet string) {
+	p.subnet = subnet
 }
 
 func (p *StorageServer) format(path string) string {

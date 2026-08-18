@@ -164,3 +164,8 @@ func (p *Server) DeleteList(ctx context.Context, short []string, user string) er
 	}
 	return p.loader.DeleteList(ctx, short, user)
 }
+
+// GetStat получение статистики пользователей и подключений.
+func (p *Server) GetStat(ctx context.Context) (int, int, error) {
+	return p.loader.GetStat(ctx)
+}

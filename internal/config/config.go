@@ -10,7 +10,9 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"sync"
 )
@@ -60,6 +62,7 @@ const (
 	configAuditAddress  = "audit_url"
 	configEnableHTTPS   = "enable_https"
 	configConfigFile    = "config_file"
+	configTrustedSubnet = "trusted_subnet"
 )
 
 const (
@@ -70,15 +73,16 @@ const (
 
 var (
 	configData = map[configType]*ConfigValue{
-		configServerAddress: {defaultValue: defaultServerAddress, flagName: []string{"a"}, envName: "SERVER_ADDRESS", description: "", valueType: valueString},
-		configBaseAddress:   {defaultValue: defaultBaseAddress, flagName: []string{"b"}, envName: "BASE_URL", description: "", source: sourceDefault, valueType: valueString},
-		configLogLevel:      {defaultValue: defaultLogLevel, flagName: []string{"l"}, envName: "LOG_LEVEL", description: "", valueType: valueString},
-		configFileName:      {defaultValue: "", flagName: []string{"f"}, envName: "FILE_STORAGE_PATH", description: "", valueType: valueString},
-		configConnAddress:   {defaultValue: "", flagName: []string{"d"}, envName: "DATABASE_DSN", description: "", valueType: valueString},
-		configAuditFile:     {defaultValue: "", flagName: []string{"audit-file"}, envName: "AUDIT_FILE", description: "", valueType: valueString},
-		configAuditAddress:  {defaultValue: "", flagName: []string{"audit-url"}, envName: "AUDIT_URL", description: "", valueType: valueString},
-		configEnableHTTPS:   {defaultValue: false, flagName: []string{"s"}, envName: "ENABLE_HTTPS", description: "", valueType: valueBool},
+		configServerAddress: {defaultValue: defaultServerAddress, flagName: []string{"a"}, envName: "SERVER_ADDRESS", description: "адрес запуска HTTP-сервера", valueType: valueString},
+		configBaseAddress:   {defaultValue: defaultBaseAddress, flagName: []string{"b"}, envName: "BASE_URL", description: "базовый адрес результирующего сокращённого URL", source: sourceDefault, valueType: valueString},
+		configLogLevel:      {defaultValue: defaultLogLevel, flagName: []string{"l"}, envName: "LOG_LEVEL", description: "уровень логирования", valueType: valueString},
+		configFileName:      {defaultValue: "", flagName: []string{"f"}, envName: "FILE_STORAGE_PATH", description: "файл для хранения сокращенных адресов", valueType: valueString},
+		configConnAddress:   {defaultValue: "", flagName: []string{"d"}, envName: "DATABASE_DSN", description: "строка с адресом подключения к БД", valueType: valueString},
+		configAuditFile:     {defaultValue: "", flagName: []string{"audit-file"}, envName: "AUDIT_FILE", description: "путь к файлу-приёмнику, в который сохраняются логи аудита", valueType: valueString},
+		configAuditAddress:  {defaultValue: "", flagName: []string{"audit-url"}, envName: "AUDIT_URL", description: "полный URL удаленного сервера-приёмника, куда отправляются логи аудита", valueType: valueString},
+		configEnableHTTPS:   {defaultValue: false, flagName: []string{"s"}, envName: "ENABLE_HTTPS", description: "использовать HTTPS", valueType: valueBool},
 		configConfigFile:    {defaultValue: "", flagName: []string{"c", "config"}, envName: "CONFIG", description: "файл конфигурации", valueType: valueString},
+		configTrustedSubnet: {defaultValue: "", flagName: []string{"t"}, envName: "TRUSTED_SUBNET", description: "строковое представление бесклассовой адресации (CIDR)", valueType: valueString},
 	}
 )
 
@@ -87,11 +91,12 @@ type Config struct {
 	list map[configType]*ConfigValue
 }
 
-var fn sync.Once
+var initOnce sync.Once
 
 // New создаёт и возвращает конфигурацию, читая значения из флагов и переменных окружения.
-func New() *Config {
-	fn.Do(func() {
+func New() (*Config, error) {
+	var err error
+	initOnce.Do(func() {
 
 		for _, v := range configData {
 			v.value = v.defaultValue
@@ -137,9 +142,15 @@ func New() *Config {
 								item.source = sourceConfig
 								switch item.valueType {
 								case valueString:
-									item.value = v.(string)
+									item.value, ok = v.(string)
+									if !ok {
+										err = errors.Join(err, fmt.Errorf("invalid type for %s", item.description))
+									}
 								case valueBool:
-									item.value = v.(bool)
+									item.value, ok = v.(bool)
+									if !ok {
+										err = errors.Join(err, fmt.Errorf("invalid type for %s", item.description))
+									}
 								}
 							}
 						}
@@ -149,7 +160,7 @@ func New() *Config {
 		}
 
 	})
-	return &Config{list: configData}
+	return &Config{list: configData}, err
 }
 
 func (c *Config) getString(name configType) string {
@@ -205,4 +216,9 @@ func (c *Config) GetAuditAddress() string {
 // IsEnableHTTPS использовать HTTPS
 func (c *Config) IsEnableHTTPS() bool {
 	return c.getBool(configEnableHTTPS)
+}
+
+// IsEnableHTTPS использовать HTTPS
+func (c *Config) GetTrustedSubnet() string {
+	return c.getString(configTrustedSubnet)
 }
