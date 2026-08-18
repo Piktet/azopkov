@@ -8,7 +8,11 @@ import (
 
 func TestConfig_GetBaseAddress(t *testing.T) {
 
-	cfg := New()
+	cfg, err := New()
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	tests := []struct {
 		name string // description of this test case
 		want string
@@ -27,7 +31,11 @@ func TestConfig_GetBaseAddress(t *testing.T) {
 
 func TestConfig_GetServerAddress(t *testing.T) {
 
-	cfg := New()
+	cfg, err := New()
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	tests := []struct {
 		name string // description of this test case
 		want string
@@ -45,7 +53,11 @@ func TestConfig_GetServerAddress(t *testing.T) {
 }
 
 func TestConfig_GetLogLevel(t *testing.T) {
-	cfg := New()
+	cfg, err := New()
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	tests := []struct {
 		name string // description of this test case
 		want string
@@ -63,7 +75,11 @@ func TestConfig_GetLogLevel(t *testing.T) {
 }
 
 func TestConfig_GetFileName(t *testing.T) {
-	cfg := New()
+	cfg, err := New()
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	tests := []struct {
 		name string // description of this test case
 		want string
@@ -81,7 +97,11 @@ func TestConfig_GetFileName(t *testing.T) {
 }
 
 func TestConfig_GetConnAddress(t *testing.T) {
-	cfg := New()
+	cfg, err := New()
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	tests := []struct {
 		name string // description of this test case
 		want string
@@ -99,7 +119,11 @@ func TestConfig_GetConnAddress(t *testing.T) {
 }
 
 func TestConfig_GetAuditFile(t *testing.T) {
-	cfg := New()
+	cfg, err := New()
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	tests := []struct {
 		name string // description of this test case
 		want string
@@ -117,7 +141,11 @@ func TestConfig_GetAuditFile(t *testing.T) {
 }
 
 func TestConfig_GetAuditAddress(t *testing.T) {
-	cfg := New()
+	cfg, err := New()
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	tests := []struct {
 		name string // description of this test case
 		want string
@@ -135,7 +163,11 @@ func TestConfig_GetAuditAddress(t *testing.T) {
 }
 
 func TestConfig_IsEnableHTTPS(t *testing.T) {
-	cfg := New()
+	cfg, err := New()
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	tests := []struct {
 		name string // description of this test case
 		want bool
@@ -153,7 +185,11 @@ func TestConfig_IsEnableHTTPS(t *testing.T) {
 }
 
 func TestConfig_getString(t *testing.T) {
-	cfg := New()
+	cfg, err := New()
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	tests := []struct {
 		name  string
 		value configType
@@ -183,7 +219,11 @@ func TestConfig_getString(t *testing.T) {
 }
 
 func TestConfig_getBool(t *testing.T) {
-	cfg := New()
+	cfg, err := New()
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	tests := []struct {
 		name  string
 		value configType

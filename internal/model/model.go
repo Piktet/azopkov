@@ -13,6 +13,7 @@ const (
 	HeaderAcceptEncoding  = "Accept-Encoding"
 	HeaderLocation        = "Location"
 	HeaderAuth            = "Authorisation"
+	HeaderRealIP          = "X-Real-IP"
 	ContentTypeText       = "text/plain"
 	ContentTypeJSON       = "application/json"
 	ContentTypeHTML       = "text/html"
@@ -47,6 +48,7 @@ type StorageLoader interface {
 	GetFull(ctx context.Context, short string) (string, error)
 	GetUserList(ctx context.Context, user string) ([]StoreItem, error)
 	DeleteList(context.Context, []string, string) error
+	GetStat(context.Context) (int, int, error)
 }
 
 // ConnLoader — интерфейс для работы с подключением к базе данных.
@@ -64,6 +66,7 @@ type Storage interface {
 	GetShort(ctx context.Context, full string, user string) (string, error)
 	GetFull(ctx context.Context, short string) (string, error)
 	DeleteList(ctx context.Context, short []string, user string) error
+	GetStat(ctx context.Context) (int, int, error)
 
 	Load(ctx context.Context, loader StorageLoader) error
 }
@@ -107,4 +110,15 @@ const (
 // Audit — интерфейс для отправки данных в систему аудита.
 type Audit interface {
 	Send(context.Context, *AuditData) error
+}
+
+// Ответ GET /api/internal/stats
+//
+//	{
+//	 "urls": <int>, // количество сокращённых URL в сервисе
+//	 "users": <int> // количество пользователей в сервисе
+//	}
+type StatData struct {
+	AddressCount int `json:"urls"`
+	UserCount    int `json:"users"`
 }
