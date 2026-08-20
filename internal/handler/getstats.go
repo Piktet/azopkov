@@ -43,7 +43,7 @@ func (p *StorageServer) HandlerGetStat(w http.ResponseWriter, r *http.Request) {
 	countUser, countAddress, err := p.GetStat(r.Context())
 	if err != nil {
 		logger.Log().Error("error getting stat", zap.Error(err))
-		w.WriteHeader(http.StatusForbidden)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 

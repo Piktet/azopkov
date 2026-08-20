@@ -151,7 +151,7 @@ func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) 
 	user := getUser(r)
 	short, shorterr := p.GetShort(r.Context(), full, user)
 	if shorterr != nil && !errors.Is(shorterr, utils.ErrConflict) {
-		if errors.Is(shorterr, model.ErrorDeleted) {
+		if errors.Is(shorterr, utils.ErrorDeleted) {
 			logger.Log().Error("error getting short", zap.Error(shorterr))
 			w.WriteHeader(http.StatusGone)
 			return
@@ -203,7 +203,7 @@ func (p *StorageServer) HandlerGetFull(w http.ResponseWriter, r *http.Request) {
 	user := getUser(r)
 	full, err := p.GetFull(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, model.ErrorDeleted) {
+		if errors.Is(err, utils.ErrorDeleted) {
 			logger.Log().Error("error getting full (is deleted)", zap.Error(err))
 			w.WriteHeader(http.StatusGone)
 			return

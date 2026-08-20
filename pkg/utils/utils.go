@@ -23,3 +23,6 @@ var ErrConflict = errors.New("already exist")
 
 // Ошибка удаленного значения.
 var ErrorDeleted = errors.New("item deleted")
+
+// Ошибка не найденого пользователя
+var ErrUserNotFound = errors.New("not found")

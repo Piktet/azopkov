@@ -106,7 +106,7 @@ func GetFull(ctx context.Context, conn Connector, short string) (string, error) 
 	if deleted {
 		err := fmt.Errorf("full name for %s is deleted", short)
 		logger.Log().Error("error", zap.Error(err))
-		return "", model.ErrorDeleted
+		return "", utils.ErrorDeleted
 
 	}
 
@@ -284,7 +284,7 @@ func getShort(ctx context.Context, conn Connector, full string) (string, error) 
 	if deleted {
 		err = fmt.Errorf("short name for %s is deleted", full)
 		logger.Log().Error("error", zap.Error(err))
-		return "", model.ErrorDeleted
+		return "", utils.ErrorDeleted
 	}
 
 	return *short, nil

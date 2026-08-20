@@ -3,7 +3,6 @@ package model
 
 import (
 	"context"
-	"errors"
 )
 
 // HTTP-заголовки, используемые в API.
@@ -24,9 +23,6 @@ const (
 	ContextValueUser = "User"
 	ContextValueAuth = "authorization"
 )
-
-// ErrorDeleted возвращается при попытке получить запись, которая была удалена.
-var ErrorDeleted = errors.New("item deleted")
 
 // Request представляет тело входного запроса на сокращение URL.
 // generate:reset

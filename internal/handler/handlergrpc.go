@@ -11,7 +11,9 @@ import (
 	"github.com/Piktet/azopkov.git/internal/proto"
 	"github.com/Piktet/azopkov.git/pkg/utils"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -30,10 +32,10 @@ func (p *StorageServer) ShortenURL(ctx context.Context, x *proto.URLShortenReque
 	if shorterr != nil && !errors.Is(shorterr, utils.ErrConflict) {
 		if errors.Is(shorterr, utils.ErrorDeleted) {
 			logger.Log().Error("error getting short", zap.Error(shorterr))
-			return nil, shorterr
+			return nil, status.Error(codes.NotFound, shorterr.Error())
 		}
 		logger.Log().Error("error getting short", zap.Error(shorterr))
-		return nil, shorterr
+		return nil, status.Error(codes.Unknown, shorterr.Error())
 	}
 
 	p.sendAudit(ctx, model.ActionShorten, user, full)
@@ -77,8 +79,8 @@ func (p *StorageServer) ListUserURLs(ctx context.Context, x *emptypb.Empty) (*pr
 	}
 
 	if len(response) == 0 {
-		logger.Log().Error("error getting short", zap.Error(err))
-		return nil, err
+		logger.Log().Error("response is empty", zap.Error(status.Error(codes.NotFound, "response is empty")))
+		return nil, status.Error(codes.NotFound, "response is empty")
 	}
 
 	logger.Log().Info("response", zap.Int("count", len(response)))
@@ -97,12 +99,12 @@ func (p *StorageServer) ListUserURLs(ctx context.Context, x *emptypb.Empty) (*pr
 func getUserFromMd(ctx context.Context) (string, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return "", errors.New("not found")
+		return "", utils.ErrUserNotFound
 	}
 	token := md.Get(model.ContextValueAuth)
 	if len(token) > 0 {
 		return token[0], nil
 	}
-	return "", errors.New("not found")
+	return "", utils.ErrUserNotFound
 
 }
