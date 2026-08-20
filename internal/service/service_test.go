@@ -180,6 +180,35 @@ func TestServer_GetShortList(t *testing.T) {
 	}
 }
 
+func TestServer_GetStat(t *testing.T) {
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		fullList []model.FullItem
+		user     string
+		wantErr  bool
+	}{
+		{
+			fullList: []model.FullItem{{Corr: "aaa", Full: "full"}},
+			wantErr:  true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			p := New()
+			gotUser, gotAddress, err := p.GetStat(context.Background())
+			if test.wantErr {
+				assert.Error(t, err)
+			} else {
+				if assert.NoError(t, err) {
+					assert.NotEmpty(t, gotUser)
+					assert.NotEmpty(t, gotAddress)
+				}
+			}
+		})
+	}
+}
+
 func TestServer_Load(t *testing.T) {
 	conn := connloader.New("")
 	file := fileloader.New(defaultFileName)

@@ -20,3 +20,9 @@ func CreateShort(n int) (string, error) {
 
 // ErrConflict возвращается при попытке создать сокращённый URL, который уже существует в хранилище.
 var ErrConflict = errors.New("already exist")
+
+// Ошибка удаленного значения.
+var ErrorDeleted = errors.New("item deleted")
+
+// Ошибка не найденого пользователя
+var ErrUserNotFound = errors.New("not found")

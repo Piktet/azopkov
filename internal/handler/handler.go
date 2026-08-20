@@ -13,6 +13,7 @@ import (
 
 	"github.com/Piktet/azopkov.git/internal/logger"
 	"github.com/Piktet/azopkov.git/internal/model"
+	"github.com/Piktet/azopkov.git/internal/proto"
 	"github.com/Piktet/azopkov.git/internal/service"
 	"github.com/Piktet/azopkov.git/pkg/utils"
 	"github.com/go-chi/chi/v5"
@@ -51,9 +52,11 @@ func NewConn(x model.ConnLoader) *ConnServer {
 //   - u — базовый URL (например, http://localhost:8080).
 //   - audit — интерфейс для отправки логов аудита.
 type StorageServer struct {
+	proto.UnimplementedShortenerServiceServer
 	model.Storage
-	u     *url.URL
-	audit model.Audit
+	u      *url.URL
+	audit  model.Audit
+	subnet string
 }
 
 // New создаёт новый экземпляр StorageServer с заданным базовым адресом.
@@ -76,6 +79,11 @@ func (p *StorageServer) SetLoader(loader model.Storage) {
 // SetAudit устанавливает интерфейс аудита для сервера.
 func (p *StorageServer) SetAudit(audit model.Audit) {
 	p.audit = audit
+}
+
+// SetTrustedSubnet установка места отправки аудита.
+func (p *StorageServer) SetTrustedSubnet(subnet string) {
+	p.subnet = subnet
 }
 
 func (p *StorageServer) format(path string) string {
@@ -143,12 +151,12 @@ func (p *StorageServer) HandlerPostFull(w http.ResponseWriter, r *http.Request) 
 	user := getUser(r)
 	short, shorterr := p.GetShort(r.Context(), full, user)
 	if shorterr != nil && !errors.Is(shorterr, utils.ErrConflict) {
-		if errors.Is(shorterr, model.ErrorDeleted) {
-			logger.Log().Error("error getting short", zap.Error(err))
+		if errors.Is(shorterr, utils.ErrorDeleted) {
+			logger.Log().Error("error getting short", zap.Error(shorterr))
 			w.WriteHeader(http.StatusGone)
 			return
 		}
-		logger.Log().Error("error getting short", zap.Error(err))
+		logger.Log().Error("error getting short", zap.Error(shorterr))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -195,7 +203,7 @@ func (p *StorageServer) HandlerGetFull(w http.ResponseWriter, r *http.Request) {
 	user := getUser(r)
 	full, err := p.GetFull(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, model.ErrorDeleted) {
+		if errors.Is(err, utils.ErrorDeleted) {
 			logger.Log().Error("error getting full (is deleted)", zap.Error(err))
 			w.WriteHeader(http.StatusGone)
 			return

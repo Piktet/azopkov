@@ -4,6 +4,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/Piktet/azopkov.git/internal/config"
@@ -105,7 +106,7 @@ func GetFull(ctx context.Context, conn Connector, short string) (string, error) 
 	if deleted {
 		err := fmt.Errorf("full name for %s is deleted", short)
 		logger.Log().Error("error", zap.Error(err))
-		return "", model.ErrorDeleted
+		return "", utils.ErrorDeleted
 
 	}
 
@@ -168,6 +169,76 @@ func Delete(ctx context.Context, conn Connector, short []string, user string) er
 	return nil
 }
 
+// GetUserCount количество пользователей.
+func GetUserCount(ctx context.Context, conn Connector) (int, error) {
+	rows, err := conn.QueryContext(ctx, "select count(*) from t_user")
+	if err != nil {
+		logger.Log().Error("error", zap.Error(err))
+		return 0, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		err = errors.New("users not found")
+		logger.Log().Info("error", zap.Error(err))
+		return 0, err
+	}
+
+	var count *int
+	if err = rows.Scan(&count); err != nil {
+		logger.Log().Error("error", zap.Error(err))
+		return 0, err
+	}
+
+	if err = rows.Err(); err != nil {
+		logger.Log().Error("error", zap.Error(err))
+		return 0, err
+	}
+
+	if count == nil {
+		err = errors.New("users count is empty")
+		logger.Log().Info("error", zap.Error(err))
+		return 0, err
+	}
+
+	return *count, nil
+}
+
+// GetUserCount количество пользователей.
+func GetAddressCount(ctx context.Context, conn Connector) (int, error) {
+	rows, err := conn.QueryContext(ctx, "select count(*) from t_data")
+	if err != nil {
+		logger.Log().Error("error", zap.Error(err))
+		return 0, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		err = errors.New("addresses not found")
+		logger.Log().Info("error", zap.Error(err))
+		return 0, err
+	}
+
+	var count *int
+	if err = rows.Scan(&count); err != nil {
+		logger.Log().Error("error", zap.Error(err))
+		return 0, err
+	}
+
+	if err = rows.Err(); err != nil {
+		logger.Log().Error("error", zap.Error(err))
+		return 0, err
+	}
+
+	if count == nil {
+		err = errors.New("addresses count is empty")
+		logger.Log().Info("error", zap.Error(err))
+		return 0, err
+	}
+
+	return *count, nil
+}
+
 func store(ctx context.Context, conn Connector, full, short, user string) error {
 	_, err := conn.ExecContext(ctx, "insert into t_data(s_full, s_short, u_user) values($1, $2, $3)", full, short, user)
 	if err != nil {
@@ -213,7 +284,7 @@ func getShort(ctx context.Context, conn Connector, full string) (string, error) 
 	if deleted {
 		err = fmt.Errorf("short name for %s is deleted", full)
 		logger.Log().Error("error", zap.Error(err))
-		return "", model.ErrorDeleted
+		return "", utils.ErrorDeleted
 	}
 
 	return *short, nil
